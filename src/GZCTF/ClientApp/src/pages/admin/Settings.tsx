@@ -59,6 +59,7 @@ import { SwitchLabel } from '@Components/admin/SwitchLabel'
 import { webCryptoAvailable } from '@Utils/Crypto'
 import { getInputNumber, showErrorMsg } from '@Utils/Shared'
 import { IMAGE_MIME_TYPES } from '@Utils/Shared'
+import { normalizeAllowedLinkHosts } from '@Utils/AllowedLinkHosts'
 import { OnceSWRConfig, useCaptchaConfig, useConfig } from '@Hooks/useConfig'
 import api, {
   AccountPolicy,
@@ -93,6 +94,7 @@ const Configs: FC = () => {
   const [registry, setRegistry] = useState<RegistryConfig | null>()
   const [proxyTrust, setProxyTrust] = useState<ProxyTrustConfig | null>()
   const [submissionEvidencePolicy, setSubmissionEvidencePolicy] = useState<SubmissionEvidencePolicy | null>()
+  const [allowedLinkHostsInput, setAllowedLinkHostsInput] = useState('')
   // Local-only state for the "Send test email" button — never
   // persisted, never round-tripped through the Save flow.
   const [testRecipient, setTestRecipient] = useState('')
@@ -137,6 +139,7 @@ const Configs: FC = () => {
       setRegistry(configs.registry)
       setProxyTrust(configs.proxyTrust)
       setSubmissionEvidencePolicy(configs.submissionEvidencePolicy)
+      setAllowedLinkHostsInput((configs.submissionEvidencePolicy?.allowedLinkHosts ?? []).join('\n'))
       setColor(configs.globalConfig?.customTheme)
       // Stash baseline for dirty tracking. Identity (referential
       // equality) isn't enough — the SWR cache may return the same
@@ -849,20 +852,15 @@ const Configs: FC = () => {
             placeholder={'chatgpt.com\ngemini.google.com\nclaude.ai'}
             minRows={6}
             disabled={disabled}
-            value={(submissionEvidencePolicy?.allowedLinkHosts ?? []).join('\n')}
-            onChange={(e) =>
+            value={allowedLinkHostsInput}
+            onChange={(e) => {
+              const rawHosts = e.currentTarget.value
+              setAllowedLinkHostsInput(rawHosts)
               setSubmissionEvidencePolicy({
                 ...submissionEvidencePolicy,
-                allowedLinkHosts: Array.from(
-                  new Set(
-                    e.currentTarget.value
-                      .split(/[\n,\s]+/)
-                      .map((host) => host.trim().toLowerCase().replace(/\.+$/, ''))
-                      .filter(Boolean)
-                  )
-                ),
+                allowedLinkHosts: normalizeAllowedLinkHosts(rawHosts),
               })
-            }
+            }}
           />
           <NumberInput
             label={t('admin.content.settings.submission_evidence.max_size.label', 'Maximum solver file size (MiB)')}
