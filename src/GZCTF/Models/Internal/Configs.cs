@@ -684,11 +684,29 @@ public class SubmissionEvidencePolicy
 
     /// <summary>LLM share-link host names. Subdomains are accepted.</summary>
     [MinLength(1)]
+    [AutoSaveIgnore]
     public List<string> AllowedLinkHosts { get; set; } =
     [
         "chatgpt.com", "chat.openai.com", "gemini.google.com", "claude.ai",
         "perplexity.ai", "copilot.microsoft.com"
     ];
+
+    /// <summary>
+    /// Scalar persistence surrogate for <see cref="AllowedLinkHosts"/>. The
+    /// reflection-based config store cannot persist collections directly.
+    /// </summary>
+    [JsonIgnore]
+    public string? AllowedLinkHostsCsv { get; set; }
+
+    internal void ApplyAllowedLinkHostsOverride()
+    {
+        if (string.IsNullOrWhiteSpace(AllowedLinkHostsCsv))
+            return;
+
+        AllowedLinkHosts = AllowedLinkHostsCsv
+            .Split([',', '\n', '\r', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
 }
 
 public class DockerConfig

@@ -183,7 +183,7 @@ public class AdminController(
     {
         if (model.SubmissionEvidencePolicy is { } evidencePolicy)
         {
-            evidencePolicy.AllowedLinkHosts = evidencePolicy.AllowedLinkHosts
+            evidencePolicy.AllowedLinkHosts = (evidencePolicy.AllowedLinkHosts ?? [])
                 .Select(host => host.Trim().TrimEnd('.').ToLowerInvariant())
                 .Where(host => host.Length > 0 && host.Length <= 253 && Uri.CheckHostName(host) == UriHostNameType.Dns)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -194,6 +194,8 @@ public class AdminController(
 
             if (evidencePolicy.MaxSolverFileSize is < 1 or > 64 * 1024 * 1024)
                 return BadRequest(new RequestResponse("The solver file limit must be between 1 byte and 64 MiB."));
+
+            evidencePolicy.AllowedLinkHostsCsv = string.Join(',', evidencePolicy.AllowedLinkHosts);
         }
 
         // handle api encryption config

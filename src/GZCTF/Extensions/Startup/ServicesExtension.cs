@@ -44,6 +44,8 @@ internal static class ServicesExtension
             builder.AddConfig<ContainerProvider>();
             builder.AddConfig<PublicChallengeRouteConfig>();
             builder.AddConfig<SubmissionEvidencePolicy>();
+            builder.Services.PostConfigure<SubmissionEvidencePolicy>(policy =>
+                policy.ApplyAllowedLinkHostsOverride());
             builder.AddConfig<BuildRegistryConfig>();
             builder.AddConfig<HoneypotConfig>();
             builder.AddConfig<FlagEgressConfig>();
