@@ -35,7 +35,8 @@ public sealed class K8sAdCheckRunner(
             return new AdCheckOutcome(AdCheckStatus.Offline, "target container has no IP", null);
 
         var client = provider.GetProvider();
-        var ns = provider.GetMetadata().Config.Namespace;
+        var metadata = provider.GetMetadata();
+        var ns = metadata.Config.Namespace;
         var targetIp = ts.Container.IP;
         var targetPort = challenge.ExposePort ?? 80;
         var useCustomChecker = !string.IsNullOrWhiteSpace(challenge.AdCheckerImage);
@@ -87,6 +88,9 @@ public sealed class K8sAdCheckRunner(
             },
             Spec = new V1PodSpec
             {
+                ImagePullSecrets = metadata.AuthSecretNames.GetForImage(image) is { } authSecret
+                    ? [new V1LocalObjectReference { Name = authSecret }]
+                    : [],
                 Containers = [checker],
                 RestartPolicy = "Never",
                 AutomountServiceAccountToken = false,

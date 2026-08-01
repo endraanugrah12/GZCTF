@@ -2,6 +2,7 @@
 # part of dotnet publish, so players receive the same evidence UI the API
 # enforces server-side.
 FROM node:24-bookworm AS node
+FROM moby/buildkit:v0.30.0 AS buildkit
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 COPY --from=node /usr/local /usr/local
@@ -21,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=build --chown=$APP_UID:$APP_UID /out .
+COPY --from=buildkit /usr/bin/buildctl /usr/local/bin/buildctl
 EXPOSE 8080
 HEALTHCHECK --interval=5m --timeout=3s --start-period=10s --retries=1 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/healthz || exit 1

@@ -730,6 +730,13 @@ public class KubernetesConfig
 {
     public string Namespace { get; set; } = "gzctf-challenges";
     public string KubeConfig { get; set; } = "kube-config.yaml";
+
+    /// <summary>
+    /// BuildKit endpoint used for repository-bound challenge builds. The k3s
+    /// template provides a rootless sidecar over a pod-local Unix socket.
+    /// </summary>
+    public string BuildkitAddress { get; set; } = "unix:///run/buildkit/buildkitd.sock";
+
     /// <summary>
     /// Extra egress-deny CIDRs for "open" challenges (e.g. the cluster's node /
     /// control-plane network). These <b>augment</b> the built-in private +

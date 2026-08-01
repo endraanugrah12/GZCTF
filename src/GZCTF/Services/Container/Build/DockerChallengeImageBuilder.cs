@@ -425,17 +425,7 @@ public sealed class DockerChallengeImageBuilder(
         //   ghcr.io/myorg/gzctf-auto/8/tower-of-babel:abc123def456
         //   registry.local:5000/gzctf-auto/8/tower-of-babel:abc123def456
         var server = reg.Server!.Trim().TrimEnd('/');
-        var ns = string.IsNullOrWhiteSpace(reg.Namespace) ? null : reg.Namespace.Trim().Trim('/');
-        // OCI/Docker reference grammar: only the DOMAIN (host) may be mixed-case; every PATH
-        // component MUST be lowercase, else the daemon's reference parser rejects the tag with
-        // "repository name must be lowercase" before any network call. GitHub org/user names (the
-        // typical ghcr.io namespace) are case-preserving and commonly mixed-case, so lowercase the
-        // whole path (server/host left as-is). slug is already slugified; gameId is numeric.
-        var path = (ns is null
-            ? $"gzctf-auto/{gameId}/{slug}"
-            : $"{ns}/gzctf-auto/{gameId}/{slug}").ToLowerInvariant();
-        var repository = $"{server}/{path}";
-        var registryTag = $"{repository}:{digest}";
+        var (repository, registryTag) = GetRegistryTarget(reg, gameId, slug, digest);
 
         AppendTail(logTail, $"\n[push] retagging {localTag} → {registryTag}\n");
 
@@ -730,6 +720,20 @@ public sealed class DockerChallengeImageBuilder(
         var slug = clean.ToString().Trim('-');
         while (slug.Contains("--")) slug = slug.Replace("--", "-");
         return slug.Length > 0 ? slug : "challenge";
+    }
+
+    internal static (string Repository, string ImageTag) GetRegistryTarget(
+        BuildRegistryConfig reg, int gameId, string slug, string digest)
+    {
+        var server = reg.Server!.Trim().TrimEnd('/');
+        var ns = string.IsNullOrWhiteSpace(reg.Namespace) ? null : reg.Namespace.Trim().Trim('/');
+        // Only the registry host may contain uppercase characters. OCI repository
+        // path components, including a GitHub account/organization, must be lowercase.
+        var path = (ns is null
+            ? $"gzctf-auto/{gameId}/{slug}"
+            : $"{ns}/gzctf-auto/{gameId}/{slug}").ToLowerInvariant();
+        var repository = $"{server}/{path}";
+        return (repository, $"{repository}:{digest}");
     }
 
     /// <summary>

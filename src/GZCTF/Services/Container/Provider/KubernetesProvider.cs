@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using GZCTF.Models.Internal;
+using GZCTF.Services.Container.Build;
 using k8s;
+using k8s.Autorest;
 using k8s.Models;
 using Microsoft.Extensions.Options;
 
@@ -40,7 +42,8 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
     private readonly List<string> _autoNodeDeny = [];
 
     public KubernetesProvider(IOptions<RegistrySet<RegistryConfig>> registries, IOptions<ContainerProvider> options,
-        IConfiguration configuration, ILogger<KubernetesProvider> logger)
+        IOptions<BuildRegistryConfig> buildRegistry, IConfiguration configuration,
+        ILogger<KubernetesProvider> logger)
     {
         _kubernetesMetadata = new()
         {
@@ -110,6 +113,20 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
         try
         {
             InitKubernetes(registries.Value);
+
+            // Auto-built Kubernetes images are always registry-backed. Recreate their
+            // pull secret on startup so persisted image references still launch after
+            // a platform restart, before another build has had a chance to run.
+            var buildReg = buildRegistry.Value;
+            if (buildReg.IsConfigured && !string.IsNullOrWhiteSpace(buildReg.Username))
+            {
+                var xorKey = configuration["XorKey"]?.ToUTF8Bytes() ?? [];
+                InsertRegistrySecret(buildReg.Server!, new RegistryConfig
+                {
+                    UserName = buildReg.Username,
+                    Password = DockerChallengeImageBuilder.DecryptXorPassword(buildReg.Password, xorKey)
+                });
+            }
         }
         catch (Exception e)
         {
@@ -299,30 +316,20 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
 
     private void InsertRegistrySecret(string address, RegistryConfig registry)
     {
-        var padding = $"GZCTF@{registry.UserName}@{address}".ToMD5String();
-        var secretName = $"{registry.UserName}-{padding}".ToValidRFC1123String("secret");
-
-        var auth = Codec.Base64.Encode($"{registry.UserName}:{registry.Password}");
-        var dockerJsonObj = new DockerRegistryOptions(
-            new Dictionary<string, DockerRegistryEntry> { [address] = new(auth, registry.UserName, registry.Password) }
-        );
-
-        var dockerJsonBytes =
-            JsonSerializer.SerializeToUtf8Bytes(dockerJsonObj, AppJsonSerializerContext.Default.DockerRegistryOptions);
-        var secret = new V1Secret
-        {
-            Metadata =
-                new V1ObjectMeta { Name = secretName, NamespaceProperty = _kubernetesMetadata.Config.Namespace },
-            Data = new Dictionary<string, byte[]> { [".dockerconfigjson"] = dockerJsonBytes },
-            Type = "kubernetes.io/dockerconfigjson"
-        };
+        address = address.Trim().TrimEnd('/');
+        var secretName = KubernetesRegistrySecret.GetName(address, registry.UserName!);
+        var secret = KubernetesRegistrySecret.Create(
+            address, registry.UserName!, registry.Password!, secretName, _kubernetesMetadata.Config.Namespace);
 
         try
         {
+            var existing = _kubernetesClient.CoreV1.ReadNamespacedSecret(
+                secretName, _kubernetesMetadata.Config.Namespace);
+            secret.Metadata.ResourceVersion = existing.Metadata.ResourceVersion;
             _kubernetesClient.CoreV1.ReplaceNamespacedSecret(secret, secretName,
                 _kubernetesMetadata.Config.Namespace);
         }
-        catch
+        catch (HttpOperationException ex) when (ex.Response?.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             _kubernetesClient.CoreV1.CreateNamespacedSecret(secret, _kubernetesMetadata.Config.Namespace);
         }
@@ -337,3 +344,29 @@ internal record DockerRegistryOptions(Dictionary<string, DockerRegistryEntry> au
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 internal record DockerRegistryEntry(string auth, string? username, string? password);
+
+internal static class KubernetesRegistrySecret
+{
+    internal static string GetName(string address, string username)
+    {
+        var padding = $"GZCTF@{username}@{address}".ToMD5String();
+        return $"{username}-{padding}".ToValidRFC1123String("secret");
+    }
+
+    internal static V1Secret Create(
+        string address, string username, string password, string name, string targetNamespace)
+    {
+        var auth = Codec.Base64.Encode($"{username}:{password}");
+        var dockerJsonObj = new DockerRegistryOptions(
+            new Dictionary<string, DockerRegistryEntry> { [address] = new(auth, username, password) });
+        var dockerJsonBytes = JsonSerializer.SerializeToUtf8Bytes(
+            dockerJsonObj, AppJsonSerializerContext.Default.DockerRegistryOptions);
+
+        return new V1Secret
+        {
+            Metadata = new V1ObjectMeta { Name = name, NamespaceProperty = targetNamespace },
+            Data = new Dictionary<string, byte[]> { [".dockerconfigjson"] = dockerJsonBytes },
+            Type = "kubernetes.io/dockerconfigjson"
+        };
+    }
+}

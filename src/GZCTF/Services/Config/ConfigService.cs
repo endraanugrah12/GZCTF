@@ -132,7 +132,11 @@ public class ConfigService(
             return;
 
         var type = info.PropertyType;
-        if (type.IsArray || IsArrayLikeInterface(type))
+        // Collection implementations such as List<T> are classes, but reflecting
+        // through them reaches indexed properties (Item[int]) and throws
+        // TargetParameterCountException. Config sections that need collection
+        // persistence must expose an explicit scalar surrogate instead.
+        if (type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
             throw new NotSupportedException(StaticLocalizer[nameof(Resources.Program.Config_TypeNotSupported)]);
 
         var converter = TypeDescriptor.GetConverter(type);
@@ -176,16 +180,4 @@ public class ConfigService(
         return configs;
     }
 
-    private static bool IsArrayLikeInterface(Type type)
-    {
-        if (!type.IsInterface || !type.IsConstructedGenericType)
-            return false;
-
-        var genericTypeDefinition = type.GetGenericTypeDefinition();
-        return genericTypeDefinition == typeof(IEnumerable<>)
-               || genericTypeDefinition == typeof(ICollection<>)
-               || genericTypeDefinition == typeof(IList<>)
-               || genericTypeDefinition == typeof(IDictionary<,>)
-               || genericTypeDefinition == typeof(ISet<>);
-    }
 }
