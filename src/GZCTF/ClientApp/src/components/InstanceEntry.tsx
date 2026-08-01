@@ -170,6 +170,12 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
   const useLocal = isWsrxUsable && !useOriginal
   const entry = useLocal ? localEntry : originalEntry
   const entryIsWss = isPlatformProxy && !useLocal
+  const entryHost = entry.split(':', 1)[0].toLowerCase()
+  const challengeBaseDomain = config.challengeBaseDomain?.replace(/^\.+|\.+$/g, '').toLowerCase()
+  const hasPublicHttpRoute = !useLocal && !!challengeBaseDomain && entryHost.endsWith(`.${challengeBaseDomain}`)
+  const webEntry = hasPublicHttpRoute
+    ? `https://${entryHost}`
+    : `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
 
   const onCopyEntry = () => {
     clipBoard.copy(entry)
@@ -274,11 +280,7 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
                 aria-label={t('challenge.content.instance.open.web')}
                 disabled={entryIsWss}
                 component="a"
-                href={
-                  entryIsWss
-                    ? '#'
-                    : `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
-                }
+                href={entryIsWss ? '#' : webEntry}
                 target={entryIsWss ? undefined : '_blank'}
                 rel="noreferrer"
               >

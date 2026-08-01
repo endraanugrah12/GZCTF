@@ -3305,6 +3305,8 @@ export interface ClientConfig {
   logoUrl?: string | null;
   /** Container port mapping type */
   portMapping?: ContainerPortMappingType;
+  /** Wildcard DNS suffix used for public HTTP challenge routes */
+  challengeBaseDomain?: string;
   /**
    * Default container lifetime in minutes
    * @format int32

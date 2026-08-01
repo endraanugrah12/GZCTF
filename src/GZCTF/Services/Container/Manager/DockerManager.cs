@@ -26,7 +26,7 @@ public class DockerManager : IContainerManager
         _logger = logger;
         _meta = provider.GetMetadata();
         _client = provider.GetProvider();
-        _routeBaseDomain = routeOptions.Value.BaseDomain.Trim().Trim('.').ToLowerInvariant();
+        _routeBaseDomain = ChallengeRoute.NormalizeBaseDomain(routeOptions.Value.BaseDomain);
 
         logger.SystemLog(StaticLocalizer[nameof(Resources.Program.ContainerManager_DockerMode)],
             TaskStatus.Success, LogLevel.Debug);
@@ -345,7 +345,7 @@ public class DockerManager : IContainerManager
                 LogLevel.Warning);
 
         if (!string.IsNullOrEmpty(_routeBaseDomain))
-            container.PublicIP = $"{Slugify(config.ChallengeSlug)}-c{config.ChallengeId}-t{config.TeamId}.{_routeBaseDomain}";
+            container.PublicIP = ChallengeRoute.GetHost(config, _routeBaseDomain);
         else if (!string.IsNullOrEmpty(_meta.PublicEntry))
             container.PublicIP = _meta.PublicEntry;
 
@@ -386,7 +386,7 @@ public class DockerManager : IContainerManager
                     ["TeamId"] = config.TeamId,
                     ["UserId"] = config.UserId.ToString(),
                     ["ChallengeId"] = config.ChallengeId.ToString(),
-                    ["ChallengeSlug"] = Slugify(config.ChallengeSlug)
+                    ["ChallengeSlug"] = ChallengeRoute.Slugify(config.ChallengeSlug)
                 },
             Name = DockerMetadata.GetName(config),
 
@@ -546,28 +546,6 @@ public class DockerManager : IContainerManager
         {
             return $"(log fetch failed: {e.Message})";
         }
-    }
-
-    private static string Slugify(string value)
-    {
-        var chars = new List<char>(value.Length);
-        var previousDash = false;
-        foreach (var ch in value.ToLowerInvariant())
-        {
-            if (char.IsAsciiLetterOrDigit(ch))
-            {
-                chars.Add(ch);
-                previousDash = false;
-            }
-            else if (!previousDash && chars.Count > 0)
-            {
-                chars.Add('-');
-                previousDash = true;
-            }
-        }
-
-        var result = new string(chars.ToArray()).Trim('-');
-        return string.IsNullOrEmpty(result) ? "challenge" : result[..Math.Min(result.Length, 40)];
     }
 
     private static IList<string> BuildContainerEnv(GZCTF.Models.Internal.ContainerConfig config)

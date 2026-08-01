@@ -513,6 +513,11 @@ public partial class ClientConfig
     public ContainerPortMappingType PortMapping { get; set; } = ContainerPortMappingType.Default;
 
     /// <summary>
+    /// Wildcard DNS suffix used for public HTTP challenge routes
+    /// </summary>
+    public string ChallengeBaseDomain { get; set; } = string.Empty;
+
+    /// <summary>
     /// Default container lifetime in minutes
     /// </summary>
     public int DefaultLifetime { get; set; } = 120;
@@ -550,12 +555,14 @@ public partial class ClientConfig
             serviceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value,
             serviceProvider.GetRequiredService<IOptionsSnapshot<ContainerPolicy>>().Value,
             serviceProvider.GetRequiredService<IOptionsSnapshot<ContainerProvider>>().Value,
+            serviceProvider.GetRequiredService<IOptionsSnapshot<PublicChallengeRouteConfig>>().Value,
             serviceProvider.GetRequiredService<IOptionsSnapshot<ManagedConfig>>().Value,
             serviceProvider.GetRequiredService<IOptionsSnapshot<AccountPolicy>>().Value,
             serviceProvider.GetRequiredService<IOptionsSnapshot<OAuthConfig>>().Value);
 
     private static ClientConfig FromConfigs(GlobalConfig globalConfig, ContainerPolicy containerPolicy,
-        ContainerProvider containerProvider, ManagedConfig managedConfig, AccountPolicy accountPolicy,
+        ContainerProvider containerProvider, PublicChallengeRouteConfig publicChallengeRouteConfig,
+        ManagedConfig managedConfig, AccountPolicy accountPolicy,
         OAuthConfig oauthConfig) =>
         new()
         {
@@ -566,6 +573,7 @@ public partial class ClientConfig
             LogoUrl = globalConfig.LogoUrl,
             ApiPublicKey = globalConfig.ApiEncryption ? managedConfig.ApiEncryption.PublicKey : null,
             PortMapping = containerProvider.PortMappingType,
+            ChallengeBaseDomain = publicChallengeRouteConfig.BaseDomain.Trim().Trim('.').ToLowerInvariant(),
             DefaultLifetime = containerPolicy.DefaultLifetime,
             ExtensionDuration = containerPolicy.ExtensionDuration,
             RenewalWindow = containerPolicy.RenewalWindow,

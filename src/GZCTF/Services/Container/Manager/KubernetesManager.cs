@@ -9,6 +9,7 @@ using GZCTF.Services.Container.Provider;
 using k8s;
 using k8s.Autorest;
 using k8s.Models;
+using Microsoft.Extensions.Options;
 
 namespace GZCTF.Services.Container.Manager;
 
@@ -38,13 +39,15 @@ public class KubernetesManager : IContainerManager
     private readonly Kubernetes _client;
     private readonly ILogger<KubernetesManager> _logger;
     private readonly KubernetesMetadata _meta;
+    private readonly string _routeBaseDomain;
 
     public KubernetesManager(IContainerProvider<Kubernetes, KubernetesMetadata> provider,
-        ILogger<KubernetesManager> logger)
+        ILogger<KubernetesManager> logger, IOptions<PublicChallengeRouteConfig> routeOptions)
     {
         _logger = logger;
         _meta = provider.GetMetadata();
         _client = provider.GetProvider();
+        _routeBaseDomain = ChallengeRoute.NormalizeBaseDomain(routeOptions.Value.BaseDomain);
 
         logger.SystemLog(StaticLocalizer[nameof(Resources.Program.ContainerManager_K8sMode)],
             TaskStatus.Success,
@@ -163,6 +166,7 @@ public class KubernetesManager : IContainerManager
             ["gzctf.gzti.me/ChallengeId"] = config.ChallengeId.ToString(),
             ["gzctf.gzti.me/NetworkMode"] = config.NetworkMode.ToString().ToLowerInvariant()
         };
+        var challengeSlug = ChallengeRoute.Slugify(config.ChallengeSlug);
         // A&D / KotH pods are exactly the ones delivered a flag via the pull sidecar
         // (pullFlag) — a reliable, exclusive marker of the A&D engine on K8s. Tag them so
         // the ad-isolation NetworkPolicy (scripts/ad-k8s-networkpolicy.yaml) can select
@@ -236,7 +240,16 @@ public class KubernetesManager : IContainerManager
             {
                 Name = name,
                 NamespaceProperty = _meta.Config.Namespace,
-                Labels = new Dictionary<string, string> { ["gzctf.gzti.me/ResourceId"] = name },
+                Labels = new Dictionary<string, string>
+                {
+                    ["gzctf.gzti.me/ResourceId"] = name,
+                    ["gzctf.gzti.me/TeamId"] = config.TeamId,
+                    ["gzctf.gzti.me/ChallengeId"] = config.ChallengeId.ToString()
+                },
+                Annotations = new Dictionary<string, string>
+                {
+                    ["gzctf.gzti.me/ChallengeSlug"] = challengeSlug
+                },
                 // Owned by the pod so K8s's own garbage collector removes the service
                 // whenever the pod goes away by ANY path — not just DestroyContainerAsync.
                 // Without this, a manual `kubectl delete pod`, node eviction, or a crash
@@ -315,7 +328,9 @@ public class KubernetesManager : IContainerManager
         if (!_meta.ExposePort)
             return container;
 
-        container.PublicIP = _meta.PublicEntry;
+        container.PublicIP = !string.IsNullOrEmpty(_routeBaseDomain)
+            ? ChallengeRoute.GetHost(config, _routeBaseDomain)
+            : _meta.PublicEntry;
         container.PublicPort = service.Spec.Ports[0].NodePort;
 
         return container;
