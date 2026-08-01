@@ -6,7 +6,9 @@
 using System.Net;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using GZCTF.Models.Internal;
 using GZCTF.Services.Container.Provider;
+using Microsoft.Extensions.Options;
 using ContainerStatus = GZCTF.Utils.ContainerStatus;
 
 namespace GZCTF.Services.Container.Manager;
@@ -16,12 +18,15 @@ public class DockerManager : IContainerManager
     private readonly DockerClient _client;
     private readonly ILogger<DockerManager> _logger;
     private readonly DockerMetadata _meta;
+    private readonly string _routeBaseDomain;
 
-    public DockerManager(IContainerProvider<DockerClient, DockerMetadata> provider, ILogger<DockerManager> logger)
+    public DockerManager(IContainerProvider<DockerClient, DockerMetadata> provider, ILogger<DockerManager> logger,
+        IOptions<PublicChallengeRouteConfig> routeOptions)
     {
         _logger = logger;
         _meta = provider.GetMetadata();
         _client = provider.GetProvider();
+        _routeBaseDomain = routeOptions.Value.BaseDomain.Trim().Trim('.').ToLowerInvariant();
 
         logger.SystemLog(StaticLocalizer[nameof(Resources.Program.ContainerManager_DockerMode)],
             TaskStatus.Success, LogLevel.Debug);
@@ -339,7 +344,9 @@ public class DockerManager : IContainerManager
                 TaskStatus.Failed,
                 LogLevel.Warning);
 
-        if (!string.IsNullOrEmpty(_meta.PublicEntry))
+        if (!string.IsNullOrEmpty(_routeBaseDomain))
+            container.PublicIP = $"{Slugify(config.ChallengeSlug)}-c{config.ChallengeId}-t{config.TeamId}.{_routeBaseDomain}";
+        else if (!string.IsNullOrEmpty(_meta.PublicEntry))
             container.PublicIP = _meta.PublicEntry;
 
         return container;
@@ -378,7 +385,8 @@ public class DockerManager : IContainerManager
                 {
                     ["TeamId"] = config.TeamId,
                     ["UserId"] = config.UserId.ToString(),
-                    ["ChallengeId"] = config.ChallengeId.ToString()
+                    ["ChallengeId"] = config.ChallengeId.ToString(),
+                    ["ChallengeSlug"] = Slugify(config.ChallengeSlug)
                 },
             Name = DockerMetadata.GetName(config),
 
@@ -540,20 +548,54 @@ public class DockerManager : IContainerManager
         }
     }
 
+    private static string Slugify(string value)
+    {
+        var chars = new List<char>(value.Length);
+        var previousDash = false;
+        foreach (var ch in value.ToLowerInvariant())
+        {
+            if (char.IsAsciiLetterOrDigit(ch))
+            {
+                chars.Add(ch);
+                previousDash = false;
+            }
+            else if (!previousDash && chars.Count > 0)
+            {
+                chars.Add('-');
+                previousDash = true;
+            }
+        }
+
+        var result = new string(chars.ToArray()).Trim('-');
+        return string.IsNullOrEmpty(result) ? "challenge" : result[..Math.Min(result.Length, 40)];
+    }
+
     private static IList<string> BuildContainerEnv(GZCTF.Models.Internal.ContainerConfig config)
     {
         var env = new List<string>(6)
         {
             $"GZCTF_TEAM_ID={config.TeamId}",
             $"GZCTF_USER_ID={config.UserId}",
-            $"GZCTF_CHALLENGE_ID={config.ChallengeId}"
+            $"GZCTF_CHALLENGE_ID={config.ChallengeId}",
+            // Common challenge-template compatibility: expose the service bind
+            // address and the same in-container port GZCTF publishes. ExtraEnv
+            // is appended below, so an infrastructure container may still
+            // explicitly override either value when it needs to.
+            "CTF_HOST=0.0.0.0",
+            $"CTF_PORT={config.ExposedPort}"
         };
 
         if (config.GameId is int gameId)
             env.Add($"GZCTF_GAME_ID={gameId}");
 
         if (!string.IsNullOrWhiteSpace(config.Flag))
+        {
             env.Add($"GZCTF_FLAG={config.Flag}");
+            // Compatibility alias for common CTF challenge templates. The
+            // documented GZCTF_FLAG remains authoritative; ExtraEnv below
+            // can still override CTF_FLAG for specialized infrastructure.
+            env.Add($"CTF_FLAG={config.Flag}");
+        }
 
         // A&D challenges: surface the in-container flag-file path so the
         // challenge author's code can read the LIVE per-tick flag (env var

@@ -106,6 +106,12 @@ export interface ChallengeModalProps extends ModalProps {
   practiceMode?: boolean
   flag: string
   setFlag: (value: string | React.ChangeEvent<any> | null | undefined) => void
+  evidenceLinks: string
+  setEvidenceLinks: (value: string) => void
+  solverFile: File | null
+  setSolverFile: (value: File | null) => void
+  /** Evidence is required for player submissions, but not for the organizer-only preview. */
+  evidenceRequired?: boolean
   onCreate: () => void
   onExtend: () => void
   onDestroy: () => void
@@ -133,6 +139,11 @@ export const ChallengeModal: FC<ChallengeModalProps> = (props) => {
     practiceMode,
     flag,
     setFlag,
+    evidenceLinks,
+    setEvidenceLinks,
+    solverFile,
+    setSolverFile,
+    evidenceRequired = true,
     onCreate,
     onExtend,
     onDestroy,
@@ -523,6 +534,30 @@ export const ChallengeModal: FC<ChallengeModalProps> = (props) => {
           }
         }}
       >
+        {evidenceRequired && (
+          <Stack gap="xs" mb="sm">
+            <Text size="xs" c="dimmed">
+              Before each flag submission, provide your LLM share link(s) and the solver used to obtain the flag.
+            </Text>
+            <Textarea
+              label="LLM share links"
+              description="ChatGPT, Gemini, Claude, or another approved shared conversation URL. One link per line."
+              value={evidenceLinks}
+              disabled={inputDisabled}
+              onChange={(event) => setEvidenceLinks(event.currentTarget.value)}
+              minRows={2}
+              required
+            />
+            <Input
+              type="file"
+              accept=".py,.sh,.txt,.zip,.tar,.gz,.tgz,.c,.cc,.cpp,.h,.hpp,.go,.rs,.js,.ts,.java,.rb,.php,.sage,.ipynb,.md"
+              disabled={inputDisabled}
+              required
+              onChange={(event) => setSolverFile(event.currentTarget.files?.[0] ?? null)}
+            />
+            {solverFile && <Text size="xs" c="dimmed">Solver: {solverFile.name}</Text>}
+          </Stack>
+        )}
         <Group justify="space-between" gap="sm" align="flex-end">
           <TextInput
             placeholder={placeholder}

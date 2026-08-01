@@ -433,9 +433,32 @@ export interface ConfigEditModel {
   /** Reverse-proxy trust list — admin-editable override for the
    *  appsettings ForwardedOptions section. Restart required to apply. */
   proxyTrust?: ProxyTrustConfig | null;
+  /** LLM links and solver file required with each flag submission. */
+  submissionEvidencePolicy?: SubmissionEvidencePolicy | null;
   /** Read-only view of the active container backend (Docker / Kubernetes).
    *  Set at startup; populated on GET, ignored on PUT. */
   containerProvider?: ContainerProviderInfoModel | null;
+}
+
+/** Policy for LLM links and solver files submitted with flags. */
+export interface SubmissionEvidencePolicy {
+  enabled?: boolean;
+  maxSolverFileSize?: number;
+  allowedLinkHosts?: string[] | null;
+}
+
+/** Organizer-visible evidence package attached to a flag submission. */
+export interface SubmissionEvidenceReviewModel {
+  id?: number;
+  challengeId?: number;
+  challengeTitle?: string | null;
+  teamName?: string | null;
+  userName?: string | null;
+  llmLinks?: string[] | null;
+  solverFileName?: string | null;
+  solverFileSize?: number;
+  uploadedAtUtc?: string;
+  submissionId?: number | null;
 }
 
 /** External OAuth login providers (Google, Discord). Admin-editable; client

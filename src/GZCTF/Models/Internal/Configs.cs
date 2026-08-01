@@ -661,6 +661,36 @@ public class ContainerProvider
     public DockerConfig? DockerConfig { get; set; }
 }
 
+/// <summary>
+/// Public DNS names used for player challenge instances.  Docker still allocates
+/// a distinct host port for every TCP service; the hostname keeps that host IP
+/// out of the player-facing UI.
+/// </summary>
+public class PublicChallengeRouteConfig
+{
+    /// <summary>Wildcard DNS suffix, for example <c>chal.example.com</c>.</summary>
+    public string BaseDomain { get; set; } = string.Empty;
+}
+
+/// <summary>Requirements for evidence that must accompany a flag submission.</summary>
+public class SubmissionEvidencePolicy
+{
+    /// <summary>When enabled, every flag submission requires a fresh evidence upload.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Maximum solver upload size in bytes.</summary>
+    [Range(1, 64 * 1024 * 1024)]
+    public long MaxSolverFileSize { get; set; } = 8L * 1024 * 1024;
+
+    /// <summary>LLM share-link host names. Subdomains are accepted.</summary>
+    [MinLength(1)]
+    public List<string> AllowedLinkHosts { get; set; } =
+    [
+        "chatgpt.com", "chat.openai.com", "gemini.google.com", "claude.ai",
+        "perplexity.ai", "copilot.microsoft.com"
+    ];
+}
+
 public class DockerConfig
 {
     public string Uri { get; set; } = string.Empty;

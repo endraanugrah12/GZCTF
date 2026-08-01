@@ -109,5 +109,9 @@ public class Submission
     [JsonIgnore]
     public GameChallenge? GameChallenge { get; set; }
 
+    /// <summary>Evidence supplied immediately before this flag submission.</summary>
+    [JsonIgnore]
+    public SubmissionEvidence? Evidence { get; set; }
+
     #endregion Db Relationship
 }

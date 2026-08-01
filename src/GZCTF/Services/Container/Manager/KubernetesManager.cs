@@ -357,14 +357,19 @@ public class KubernetesManager : IContainerManager
         {
             new() { Name = "GZCTF_TEAM_ID", Value = config.TeamId },
             new() { Name = "GZCTF_USER_ID", Value = config.UserId.ToString() },
-            new() { Name = "GZCTF_CHALLENGE_ID", Value = config.ChallengeId.ToString() }
+            new() { Name = "GZCTF_CHALLENGE_ID", Value = config.ChallengeId.ToString() },
+            new() { Name = "CTF_HOST", Value = "0.0.0.0" },
+            new() { Name = "CTF_PORT", Value = config.ExposedPort.ToString() }
         };
 
         if (config.GameId is int gameId)
             envs.Add(new V1EnvVar { Name = "GZCTF_GAME_ID", Value = gameId.ToString() });
 
         if (!string.IsNullOrWhiteSpace(config.Flag))
+        {
             envs.Add(new V1EnvVar { Name = "GZCTF_FLAG", Value = config.Flag });
+            envs.Add(new V1EnvVar { Name = "CTF_FLAG", Value = config.Flag });
+        }
 
         // A&D: tell the challenge where to read the per-tick flag (the read-only
         // pull volume). Challenges should read $GZCTF_FLAG_FILE (fallback /flag).

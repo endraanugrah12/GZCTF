@@ -42,6 +42,7 @@ import {
   mdiKeyChainVariant,
   mdiKubernetes,
   mdiPackageVariantClosed,
+  mdiRobotLoveOutline,
   mdiRestore,
   mdiShieldCheckOutline,
   mdiViewDashboardOutline,
@@ -72,6 +73,7 @@ import api, {
   OAuthConfig,
   ProxyTrustConfig,
   RegistryConfig,
+  SubmissionEvidencePolicy,
 } from '@Api'
 import misc from '@Styles/Misc.module.css'
 
@@ -90,6 +92,7 @@ const Configs: FC = () => {
   const [oauth, setOAuth] = useState<OAuthConfig | null>()
   const [registry, setRegistry] = useState<RegistryConfig | null>()
   const [proxyTrust, setProxyTrust] = useState<ProxyTrustConfig | null>()
+  const [submissionEvidencePolicy, setSubmissionEvidencePolicy] = useState<SubmissionEvidencePolicy | null>()
   // Local-only state for the "Send test email" button — never
   // persisted, never round-tripped through the Save flow.
   const [testRecipient, setTestRecipient] = useState('')
@@ -110,6 +113,7 @@ const Configs: FC = () => {
     | 'captcha'
     | 'oauth'
     | 'registry_pull'
+    | 'submission_evidence'
     | 'diagnostics'
   const [activeSection, setActiveSection] = useState<SectionKey>('platform')
   const initialSnapshotRef = useRef<string | null>(null)
@@ -132,6 +136,7 @@ const Configs: FC = () => {
       setOAuth(configs.oAuth)
       setRegistry(configs.registry)
       setProxyTrust(configs.proxyTrust)
+      setSubmissionEvidencePolicy(configs.submissionEvidencePolicy)
       setColor(configs.globalConfig?.customTheme)
       // Stash baseline for dirty tracking. Identity (referential
       // equality) isn't enough — the SWR cache may return the same
@@ -147,6 +152,7 @@ const Configs: FC = () => {
         oauth: configs.oAuth,
         registry: configs.registry,
         proxyTrust: configs.proxyTrust,
+        submissionEvidencePolicy: configs.submissionEvidencePolicy,
       })
     }
   }, [configs])
@@ -163,6 +169,7 @@ const Configs: FC = () => {
     oauth,
     registry,
     proxyTrust,
+    submissionEvidencePolicy,
   })
   const dirty = initialSnapshotRef.current !== null && currentSnapshot !== initialSnapshotRef.current
 
@@ -198,9 +205,10 @@ const Configs: FC = () => {
           ? 'configured'
           : 'inactive',
       registry_pull: registry?.isConfigured ? 'configured' : 'inactive',
+      submission_evidence: submissionEvidencePolicy?.enabled ? 'configured' : 'inactive',
       diagnostics: 'configured',
     }
-  }, [accountPolicy, buildRegistry, email, captcha, oauth, registry])
+  }, [accountPolicy, buildRegistry, email, captcha, oauth, registry, submissionEvidencePolicy])
 
   const navItems: { key: SectionKey; icon: string }[] = [
     { key: 'platform', icon: mdiViewDashboardOutline },
@@ -210,6 +218,7 @@ const Configs: FC = () => {
     { key: 'captcha', icon: mdiShieldCheckOutline },
     { key: 'oauth', icon: mdiKeyChainVariant },
     { key: 'registry_pull', icon: mdiPackageVariantClosed },
+    { key: 'submission_evidence', icon: mdiRobotLoveOutline },
     { key: 'build_registry', icon: mdiHammerWrench },
     { key: 'diagnostics', icon: mdiHeartPulse },
   ]
@@ -347,6 +356,7 @@ const Configs: FC = () => {
       oAuth: oauth,
       registry,
       proxyTrust,
+      submissionEvidencePolicy,
     })
     setSaved(false)
     setTimeout(() => {
@@ -366,7 +376,7 @@ const Configs: FC = () => {
             label: (
               <Group gap={6} wrap="nowrap" align="center" justify="center">
                 <Text size="sm" fw={500}>
-                  {t(`admin.content.settings.nav.${item.key}`)}
+                  {t(`admin.content.settings.nav.${item.key}`, item.key === 'submission_evidence' ? 'AI evidence' : item.key)}
                 </Text>
                 <StatusDot status={statuses[item.key]} />
               </Group>
@@ -793,6 +803,93 @@ const Configs: FC = () => {
               }
             />
           </SimpleGrid>
+        </Stack>
+        )}
+        {activeSection === 'submission_evidence' && (
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={2}>{t('admin.content.settings.submission_evidence.title', 'Submission evidence')}</Title>
+            <SectionHelp
+              description={t(
+                'admin.content.settings.submission_evidence.help',
+                'Require players to upload a solver and approved LLM share links before every flag submission.'
+              )}
+            />
+          </Group>
+          <Text size="sm" c="dimmed">
+            {t(
+              'admin.content.settings.submission_evidence.description',
+              'The server enforces this policy for every flag attempt. Organizers review the submitted links and solver files from a game’s Monitor → Evidence page.'
+            )}
+          </Text>
+          <Divider />
+          <Switch
+            checked={submissionEvidencePolicy?.enabled ?? false}
+            disabled={disabled}
+            label={SwitchLabel(
+              t('admin.content.settings.submission_evidence.enabled.label', 'Require submission evidence'),
+              t(
+                'admin.content.settings.submission_evidence.enabled.description',
+                'Block flag submissions until a valid LLM share link and solver file are uploaded.'
+              )
+            )}
+            onChange={(e) =>
+              setSubmissionEvidencePolicy({
+                ...submissionEvidencePolicy,
+                enabled: e.currentTarget.checked,
+              })
+            }
+          />
+          <Textarea
+            label={t('admin.content.settings.submission_evidence.hosts.label', 'Allowed LLM share-link hosts')}
+            description={t(
+              'admin.content.settings.submission_evidence.hosts.description',
+              'One hostname per line. HTTPS links on these hosts or their subdomains are accepted.'
+            )}
+            placeholder={'chatgpt.com\ngemini.google.com\nclaude.ai'}
+            minRows={6}
+            disabled={disabled}
+            value={(submissionEvidencePolicy?.allowedLinkHosts ?? []).join('\n')}
+            onChange={(e) =>
+              setSubmissionEvidencePolicy({
+                ...submissionEvidencePolicy,
+                allowedLinkHosts: Array.from(
+                  new Set(
+                    e.currentTarget.value
+                      .split(/[\n,\s]+/)
+                      .map((host) => host.trim().toLowerCase().replace(/\.+$/, ''))
+                      .filter(Boolean)
+                  )
+                ),
+              })
+            }
+          />
+          <NumberInput
+            label={t('admin.content.settings.submission_evidence.max_size.label', 'Maximum solver file size (MiB)')}
+            description={t(
+              'admin.content.settings.submission_evidence.max_size.description',
+              'Files are stored privately and are only downloadable by game monitors.'
+            )}
+            min={1}
+            max={64}
+            allowDecimal={false}
+            disabled={disabled}
+            value={(submissionEvidencePolicy?.maxSolverFileSize ?? 8 * 1024 * 1024) / (1024 * 1024)}
+            onChange={(value) => {
+              const sizeMiB = typeof value === 'number' ? value : Number(value)
+              if (!Number.isFinite(sizeMiB)) return
+              setSubmissionEvidencePolicy({
+                ...submissionEvidencePolicy,
+                maxSolverFileSize: Math.round(sizeMiB * 1024 * 1024),
+              })
+            }}
+          />
+          <Alert color="blue" icon={<Icon path={mdiInformationOutline} size={1} />}>
+            {t(
+              'admin.content.settings.submission_evidence.review_hint',
+              'Evidence is private: it is not written to ordinary admin logs and is not exposed through public file URLs.'
+            )}
+          </Alert>
         </Stack>
         )}
         {activeSection === 'build_registry' && (

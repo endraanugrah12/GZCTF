@@ -558,7 +558,9 @@
         "container": "容器",
         "email": "邮件",
         "captcha": "验证码",
+        "oauth": "OAuth",
         "registry_pull": "拉取凭证",
+        "submission_evidence": "AI 证据",
         "build_registry": "推送配置",
         "diagnostics": "诊断"
       },

@@ -587,6 +587,7 @@
         "captcha": "Captcha",
         "oauth": "OAuth",
         "registry_pull": "Pull creds",
+        "submission_evidence": "AI evidence",
         "build_registry": "Build push",
         "diagnostics": "Diagnostics"
       },

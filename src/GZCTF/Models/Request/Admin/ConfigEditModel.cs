@@ -65,6 +65,12 @@ public class ConfigEditModel
     public ProxyTrustConfig? ProxyTrust { get; set; }
 
     /// <summary>
+    /// Evidence required alongside each player flag submission. Organizers can
+    /// enable the policy and choose which LLM share-link hosts are accepted.
+    /// </summary>
+    public SubmissionEvidencePolicy? SubmissionEvidencePolicy { get; set; }
+
+    /// <summary>
     /// Read-only view of the active container backend (Docker / Kubernetes).
     /// Sourced from startup config, not editable here — populated on GET and
     /// ignored on PUT.

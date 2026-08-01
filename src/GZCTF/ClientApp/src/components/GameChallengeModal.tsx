@@ -80,6 +80,8 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
   const [disabled, setDisabled] = useState(false)
   const [submitId, setSubmitId] = useState(0)
   const [flag, setFlag] = useInputState('')
+  const [evidenceLinks, setEvidenceLinks] = useState('')
+  const [solverFile, setSolverFile] = useState<File | null>(null)
   const [solvedChallengeId, setSolvedChallengeId] = useState<number | null>(null)
 
   const isLimitReached = (challenge?.limit && (challenge.attempts ?? 0) >= challenge.limit) || false
@@ -176,12 +178,30 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
       return
     }
 
+    if (!evidenceLinks.trim() || !solverFile) {
+      showNotification({
+        color: 'red',
+        message: 'Add at least one approved LLM share link and your solver file before submitting.',
+        icon: <Icon path={mdiClose} size={1} />,
+      })
+      return
+    }
+
     setDisabled(true)
 
     try {
+      const evidence = new FormData()
+      evidence.append('llmLinks', evidenceLinks)
+      evidence.append('solver', solverFile)
+      await api.instance.post(`/api/game/${gameId}/challenges/${challengeId}/evidence`, evidence, {
+        withCredentials: true,
+      })
+
       const res = await api.game.gameSubmit(gameId, challengeId, {
         flag: await encryptApiData(t, flag, config.apiPublicKey),
       })
+      setEvidenceLinks('')
+      setSolverFile(null)
       setSubmitId(res.data)
       notifications.clean()
       showNotification({
@@ -336,6 +356,10 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
       solvers={solvers}
       flag={flag}
       setFlag={setFlag}
+      evidenceLinks={evidenceLinks}
+      setEvidenceLinks={setEvidenceLinks}
+      solverFile={solverFile}
+      setSolverFile={setSolverFile}
       onCreate={onCreate}
       onDestroy={onDestroy}
       onSubmitFlag={onSubmit}

@@ -17,6 +17,9 @@ public class ContainerConfig
     /// </summary>
     public int ChallengeId { get; set; }
 
+    /// <summary>Human-readable challenge name used to generate the public DNS label.</summary>
+    public string ChallengeSlug { get; set; } = "challenge";
+
     /// <summary>
     /// Game ID, null for exercise containers
     /// </summary>

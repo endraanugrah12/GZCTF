@@ -60,11 +60,17 @@ public class GameController(
     IGameInstanceRepository gameInstanceRepository,
     IParticipationRepository participationRepository,
     IOptionsSnapshot<ContainerPolicy> containerPolicy,
+    IOptionsSnapshot<SubmissionEvidencePolicy> evidencePolicy,
     IDataProtectionProvider dataProtectionProvider,
     AppDbContext dbContext,
     IStringLocalizer<Program> localizer) : ControllerBase
 {
     private readonly IDataProtector _protector = dataProtectionProvider.CreateProtector("GZCTF.Assets.Download");
+    private static readonly HashSet<string> SolverExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".py", ".sh", ".txt", ".zip", ".tar", ".gz", ".tgz", ".c", ".cc", ".cpp", ".h", ".hpp",
+        ".go", ".rs", ".js", ".ts", ".java", ".rb", ".php", ".sage", ".ipynb", ".md"
+    };
     /// <summary>
     /// Get the recent games
     /// </summary>
@@ -1653,6 +1659,130 @@ public class GameController(
         return Ok(summaries.Where(s => solvedIds.Contains(s.ChallengeId)).ToArray());
     }
 
+    /// <summary>Returns whether a fresh evidence package is ready for the next flag submission.</summary>
+    [RequireUser]
+    [HttpGet("{id:int}/Challenges/{challengeId:int}/Evidence")]
+    [ProducesResponseType(typeof(SubmissionEvidenceStatusModel), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EvidenceStatus([FromRoute] int id, [FromRoute] int challengeId,
+        CancellationToken token)
+    {
+        var policy = evidencePolicy.Value;
+        if (!policy.Enabled)
+            return Ok(new SubmissionEvidenceStatusModel { Required = false, Ready = true, MaxSolverFileSize = policy.MaxSolverFileSize });
+
+        var context = await GetContextInfo(id, token: token);
+        if (context.Result is not null)
+            return context.Result;
+
+        var ready = await dbContext.SubmissionEvidence.AsNoTracking().AnyAsync(e =>
+            e.GameId == id && e.ChallengeId == challengeId && e.UserId == context.User!.Id &&
+            e.ParticipationId == context.Participation!.Id && e.SubmissionId == null, token);
+
+        return Ok(new SubmissionEvidenceStatusModel
+        {
+            Required = true,
+            Ready = ready,
+            MaxSolverFileSize = policy.MaxSolverFileSize
+        });
+    }
+
+    /// <summary>Uploads the LLM links and solver required for one flag submission.</summary>
+    [RequireUser]
+    [HttpPost("{id:int}/Challenges/{challengeId:int}/Evidence")]
+    [RequestSizeLimit(64 * 1024 * 1024)]
+    [ProducesResponseType(typeof(SubmissionEvidenceStatusModel), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UploadEvidence([FromRoute] int id, [FromRoute] int challengeId,
+        [FromForm] string? llmLinks, [FromForm] IFormFile? solver, CancellationToken token)
+    {
+        var policy = evidencePolicy.Value;
+        if (!policy.Enabled)
+            return Ok(new SubmissionEvidenceStatusModel { Required = false, Ready = true, MaxSolverFileSize = policy.MaxSolverFileSize });
+
+        var context = await GetContextInfo(id, token: token);
+        if (context.Result is not null)
+            return context.Result;
+
+        var instance = await gameInstanceRepository.GetInstanceForSubmission(context.Participation!, challengeId, token);
+        if (instance is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_ChallengeNotFound)], StatusCodes.Status404NotFound));
+
+        var links = ValidateEvidenceLinks(llmLinks, policy);
+        if (links is null)
+            return BadRequest(new RequestResponse("Provide one or more valid LLM share links from an allowed provider."));
+
+        if (solver is null || solver.Length <= 0 || solver.Length > policy.MaxSolverFileSize)
+            return BadRequest(new RequestResponse($"Upload a non-empty solver file no larger than {policy.MaxSolverFileSize} bytes."));
+
+        var filename = Path.GetFileName(solver.FileName);
+        if (filename != solver.FileName || filename.Length > 180 || !SolverExtensions.Contains(Path.GetExtension(filename)))
+            return BadRequest(new RequestResponse("Unsupported solver filename or file extension."));
+
+        var file = await blobService.CreateOrUpdateBlob(solver, filename, token);
+        var evidence = new SubmissionEvidence
+        {
+            GameId = id,
+            ChallengeId = challengeId,
+            UserId = context.User!.Id,
+            ParticipationId = context.Participation!.Id,
+            LlmLinks = string.Join('\n', links),
+            SolverFileId = file.Id
+        };
+
+        await dbContext.SubmissionEvidence.AddAsync(evidence, token);
+        await dbContext.SaveChangesAsync(token);
+
+        return Ok(new SubmissionEvidenceStatusModel { Required = true, Ready = true, MaxSolverFileSize = policy.MaxSolverFileSize });
+    }
+
+    /// <summary>Lists evidence packages for organizer review.</summary>
+    [RequireMonitor]
+    [HttpGet("{id:int}/Evidence")]
+    [ProducesResponseType(typeof(SubmissionEvidenceReviewModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListEvidence([FromRoute] int id, [FromQuery] int? challengeId,
+        CancellationToken token)
+    {
+        var query = dbContext.SubmissionEvidence.AsNoTracking()
+            .Include(e => e.SolverFile).Include(e => e.Challenge).Include(e => e.User)
+            .Include(e => e.Participation).ThenInclude(p => p.Team)
+            .Where(e => e.GameId == id);
+        if (challengeId is not null)
+            query = query.Where(e => e.ChallengeId == challengeId);
+
+        var records = await query.OrderByDescending(e => e.UploadedAtUtc).Take(1000).ToArrayAsync(token);
+        return Ok(records.Select(e => new SubmissionEvidenceReviewModel
+        {
+            Id = e.Id,
+            ChallengeId = e.ChallengeId,
+            ChallengeTitle = e.Challenge.Title,
+            TeamName = e.Participation.Team.Name,
+            UserName = e.User.UserName ?? string.Empty,
+            LlmLinks = e.LlmLinks.Split('\n', StringSplitOptions.RemoveEmptyEntries),
+            SolverFileName = e.SolverFile.Name,
+            SolverFileSize = e.SolverFile.FileSize,
+            UploadedAtUtc = e.UploadedAtUtc,
+            SubmissionId = e.SubmissionId
+        }));
+    }
+
+    /// <summary>Downloads a solver submitted as evidence. Organizers only.</summary>
+    [RequireMonitor]
+    [HttpGet("{id:int}/Evidence/{evidenceId:int}/Solver")]
+    public async Task<IActionResult> DownloadEvidenceSolver([FromRoute] int id, [FromRoute] int evidenceId,
+        CancellationToken token)
+    {
+        var evidence = await dbContext.SubmissionEvidence.Include(e => e.SolverFile)
+            .SingleOrDefaultAsync(e => e.Id == evidenceId && e.GameId == id, token);
+        if (evidence is null)
+            return NotFound();
+
+        var path = StoragePath.Combine(PathHelper.Uploads, evidence.SolverFile.Location, evidence.SolverFile.Hash);
+        if (!await storage.ExistsAsync(path, token))
+            return NotFound();
+
+        var stream = await storage.OpenReadAsync(path, token);
+        return File(stream, MediaTypeNames.Application.Octet, evidence.SolverFile.Name);
+    }
+
     /// <summary>
     /// Submits a flag
     /// </summary>
@@ -1712,6 +1842,16 @@ public class GameController(
                 return BadRequest(
                     new RequestResponse(localizer[nameof(Resources.Program.Challenge_SubmissionNoPermission)]));
 
+            SubmissionEvidence? evidence = null;
+            if (evidencePolicy.Value.Enabled)
+            {
+                evidence = await dbContext.SubmissionEvidence.SingleOrDefaultAsync(e =>
+                    e.GameId == id && e.ChallengeId == challengeId && e.UserId == context.User!.Id &&
+                    e.ParticipationId == context.Participation!.Id && e.SubmissionId == null, token);
+                if (evidence is null)
+                    return BadRequest(new RequestResponse("Upload valid LLM share links and a solver file before submitting a flag."));
+            }
+
             var currentAttempts =
                 await submissionRepository.CountSubmissions(context.Participation!.Id, challengeId, token);
 
@@ -1743,6 +1883,11 @@ public class GameController(
             try
             {
                 submission = await submissionRepository.AddSubmission(submission, token);
+                if (evidence is not null)
+                {
+                    evidence.SubmissionId = submission.Id;
+                    await dbContext.SaveChangesAsync(token);
+                }
                 await transaction.CommitAsync(token);
 
                 await channelWriter.WriteAsync(submission, token);
@@ -2179,6 +2324,39 @@ public class GameController(
 
     private static string GameETag(int gameId, DateTimeOffset lastModified, bool frozen = false) =>
         $"\"{gameId}-{lastModified.ToUnixTimeSeconds():X}-{(frozen ? "f" : "l")}\"";
+
+    private static string[]? ValidateEvidenceLinks(string? rawLinks, SubmissionEvidencePolicy policy)
+    {
+        if (string.IsNullOrWhiteSpace(rawLinks))
+            return null;
+
+        var allowed = policy.AllowedLinkHosts
+            .Where(host => !string.IsNullOrWhiteSpace(host))
+            .Select(host => host.Trim().Trim('.').ToLowerInvariant())
+            .ToArray();
+        if (allowed.Length == 0)
+            return null;
+
+        var links = rawLinks.Split(['\r', '\n', ',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .Take(10)
+            .ToArray();
+        if (links.Length == 0)
+            return null;
+
+        foreach (var link in links)
+        {
+            if (!Uri.TryCreate(link, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
+                string.IsNullOrWhiteSpace(uri.Host))
+                return null;
+
+            var host = uri.Host.TrimEnd('.').ToLowerInvariant();
+            if (!allowed.Any(allowedHost => host == allowedHost || host.EndsWith($".{allowedHost}", StringComparison.Ordinal)))
+                return null;
+        }
+
+        return links;
+    }
 
     private static Dictionary<ChallengeCategory, IEnumerable<ChallengeInfo>> FilterChallengesByPermission(
         Dictionary<ChallengeCategory, IEnumerable<ChallengeInfo>> challenges,

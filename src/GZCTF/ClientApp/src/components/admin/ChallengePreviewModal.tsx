@@ -32,6 +32,8 @@ export const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => 
 
   const { t } = useTranslation()
   const [flag, setFlag] = useInputState('')
+  const [evidenceLinks, setEvidenceLinks] = useState('https://chatgpt.com/share/example')
+  const [solverFile, setSolverFile] = useState<File | null>(null)
   const [attempts, setAttempts] = useState(0)
 
   const onCreate = () => {
@@ -90,6 +92,11 @@ export const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => 
       cateData={cateData}
       flag={flag}
       setFlag={setFlag}
+      evidenceLinks={evidenceLinks}
+      setEvidenceLinks={setEvidenceLinks}
+      solverFile={solverFile}
+      setSolverFile={setSolverFile}
+      evidenceRequired={false}
       onCreate={onCreate}
       onDestroy={onDestroy}
       onSubmitFlag={onSubmit}

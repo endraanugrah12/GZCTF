@@ -42,6 +42,8 @@ internal static class ServicesExtension
             builder.AddConfig<ManagedConfig>();
             builder.AddConfig<ContainerPolicy>();
             builder.AddConfig<ContainerProvider>();
+            builder.AddConfig<PublicChallengeRouteConfig>();
+            builder.AddConfig<SubmissionEvidencePolicy>();
             builder.AddConfig<BuildRegistryConfig>();
             builder.AddConfig<HoneypotConfig>();
             builder.AddConfig<FlagEgressConfig>();

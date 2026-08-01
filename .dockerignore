@@ -1,0 +1,6 @@
+.git
+**/bin
+**/obj
+**/node_modules
+docs/node_modules
+publish

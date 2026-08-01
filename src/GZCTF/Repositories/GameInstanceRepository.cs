@@ -190,6 +190,7 @@ public class GameInstanceRepository(
             TeamId = team.Id.ToString(),
             UserId = user.Id,
             ChallengeId = gameInstance.ChallengeId,
+            ChallengeSlug = challenge.Title,
             GameId = challenge.GameId,
             Flag = gameInstance.FlagContext?.Flag, // static challenge has no specific flag
             Image = challenge.ContainerImage,
@@ -297,6 +298,7 @@ public class GameInstanceRepository(
                 TeamId = $"shared-{challenge.Id}",
                 UserId = Guid.Empty,
                 ChallengeId = challenge.Id,
+                ChallengeSlug = challenge.Title,
                 GameId = challenge.GameId,
                 Flag = null,
                 Image = challenge.ContainerImage,

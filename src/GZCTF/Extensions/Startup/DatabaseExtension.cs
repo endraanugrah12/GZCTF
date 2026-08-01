@@ -36,9 +36,7 @@ internal static class DatabaseExtension
             catch (Exception e)
             {
                 if (builder.Configuration.GetSection("ConnectionStrings").GetSection("Database").Exists())
-                    Log.Logger.Error(StaticLocalizer[
-                        nameof(Resources.Program.Database_CurrentConnectionString),
-                        builder.Configuration.GetConnectionString("Database") ?? "null"]);
+                    Log.Logger.Error("Database connection is configured but could not be opened");
                 ExitWithFatalMessage(
                     StaticLocalizer[nameof(Resources.Program.Database_ConnectionFailed), e.Message]);
             }

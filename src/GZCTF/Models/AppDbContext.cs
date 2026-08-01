@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     public DbSet<Container> Containers { get; set; } = null!;
     public DbSet<GameEvent> GameEvents { get; set; } = null!;
     public DbSet<Submission> Submissions { get; set; } = null!;
+    public DbSet<SubmissionEvidence> SubmissionEvidence { get; set; } = null!;
     public DbSet<Attachment> Attachments { get; set; } = null!;
     public DbSet<GameNotice> GameNotices { get; set; } = null!;
     public DbSet<FlagContext> FlagContexts { get; set; } = null!;
@@ -227,6 +228,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
                         .OnDelete(DeleteBehavior.Cascade),
                     e => e.HasKey(i => new { i.ChallengeId, i.ParticipationId })
                 );
+        });
+
+        builder.Entity<SubmissionEvidence>(entity =>
+        {
+            entity.HasOne(e => e.SolverFile).WithMany().HasForeignKey(e => e.SolverFileId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Submission).WithOne(e => e.Evidence).HasForeignKey<SubmissionEvidence>(e => e.SubmissionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Game).WithMany().HasForeignKey(e => e.GameId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Challenge).WithMany().HasForeignKey(e => e.ChallengeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Participation).WithMany().HasForeignKey(e => e.ParticipationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<GameInstance>(entity =>

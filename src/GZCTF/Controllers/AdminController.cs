@@ -153,6 +153,7 @@ public class AdminController(
             OAuth = safeOAuth,
             Registry = safeRegistry,
             ProxyTrust = serviceProvider.GetRequiredService<IOptionsSnapshot<ProxyTrustConfig>>().Value,
+            SubmissionEvidencePolicy = serviceProvider.GetRequiredService<IOptionsSnapshot<SubmissionEvidencePolicy>>().Value,
             ContainerProvider = new ContainerProviderInfoModel
             {
                 Type = containerProvider.Type,
@@ -180,6 +181,21 @@ public class AdminController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateConfigs([FromBody] ConfigEditModel model, CancellationToken token)
     {
+        if (model.SubmissionEvidencePolicy is { } evidencePolicy)
+        {
+            evidencePolicy.AllowedLinkHosts = evidencePolicy.AllowedLinkHosts
+                .Select(host => host.Trim().TrimEnd('.').ToLowerInvariant())
+                .Where(host => host.Length > 0 && host.Length <= 253 && Uri.CheckHostName(host) == UriHostNameType.Dns)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (evidencePolicy.AllowedLinkHosts.Count == 0)
+                return BadRequest(new RequestResponse("At least one valid LLM share-link host is required."));
+
+            if (evidencePolicy.MaxSolverFileSize is < 1 or > 64 * 1024 * 1024)
+                return BadRequest(new RequestResponse("The solver file limit must be between 1 byte and 64 MiB."));
+        }
+
         // handle api encryption config
         var global = serviceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value;
         if (!global.ApiEncryption && model.GlobalConfig?.ApiEncryption is true)

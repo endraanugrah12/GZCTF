@@ -1,0 +1,27 @@
+# Local, pinned build of the vendored GZCTF source. The frontend is built as
+# part of dotnet publish, so players receive the same evidence UI the API
+# enforces server-side.
+FROM node:24-bookworm AS node
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+COPY --from=node /usr/local /usr/local
+ENV PATH="/usr/local/bin:${PATH}"
+RUN npm install --global pnpm@11
+WORKDIR /src
+COPY . .
+WORKDIR /src/src/GZCTF
+RUN dotnet publish GZCTF.csproj -c Release -o /out -r linux-x64 --no-self-contained
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    LC_ALL=en_US.UTF-8
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget libpcap0.8t64 ca-certificates libgdiplus libkrb5-3 git openssh-client && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+COPY --from=build --chown=$APP_UID:$APP_UID /out .
+EXPOSE 8080
+HEALTHCHECK --interval=5m --timeout=3s --start-period=10s --retries=1 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/healthz || exit 1
+ENTRYPOINT ["dotnet", "GZCTF.dll"]
