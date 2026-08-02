@@ -20,7 +20,8 @@ import { HandleWsrxError, useWsrx } from '@Components/WsrxProvider'
 import { getProxyUrl as getProxyEntry } from '@Utils/Shared'
 import { useConfig } from '@Hooks/useConfig'
 import { useTicker } from '@Hooks/useTicker'
-import { ClientFlagContext, ContainerPortMappingType } from '@Api'
+import { ChallengeCategory, ClientFlagContext, ContainerPortMappingType } from '@Api'
+import { getPublicHttpEntry } from '@Utils/InstanceRoute'
 import classes from '@Styles/InstanceEntry.module.css'
 import misc from '@Styles/Misc.module.css'
 
@@ -29,6 +30,7 @@ dayjs.extend(duration)
 interface InstanceEntryProps {
   test?: boolean
   label?: string
+  category?: ChallengeCategory
   context: ClientFlagContext
   disabled?: boolean
   onCreate?: () => void
@@ -170,15 +172,16 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
   const useLocal = isWsrxUsable && !useOriginal
   const entry = useLocal ? localEntry : originalEntry
   const entryIsWss = isPlatformProxy && !useLocal
-  const entryHost = entry.split(':', 1)[0].toLowerCase()
-  const challengeBaseDomain = config.challengeBaseDomain?.replace(/^\.+|\.+$/g, '').toLowerCase()
-  const hasPublicHttpRoute = !useLocal && !!challengeBaseDomain && entryHost.endsWith(`.${challengeBaseDomain}`)
-  const webEntry = hasPublicHttpRoute
-    ? `https://${entryHost}`
-    : `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
+  const isWebChallenge = props.category === ChallengeCategory.Web
+  const publicHttpEntry = !useLocal
+    ? getPublicHttpEntry(entry, config.challengeBaseDomain, isWebChallenge)
+    : null
+  const displayEntry = publicHttpEntry ?? entry
+  const webEntry = publicHttpEntry
+    ?? `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
 
   const onCopyEntry = () => {
-    clipBoard.copy(entry)
+    clipBoard.copy(displayEntry)
 
     showNotification({
       color: 'teal',
@@ -243,7 +246,7 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
             className={classes.icon}
           />
         }
-        value={entry}
+        value={displayEntry}
         readOnly
         classNames={{ input: misc.ffmono }}
         rightSection={
@@ -275,21 +278,23 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
                 <Icon path={mdiContentCopy} size={1} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label={t('challenge.content.instance.open.web')} withArrow>
-              <ActionIcon
-                aria-label={t('challenge.content.instance.open.web')}
-                disabled={entryIsWss}
-                component="a"
-                href={entryIsWss ? '#' : webEntry}
-                target={entryIsWss ? undefined : '_blank'}
-                rel="noreferrer"
-              >
-                <Icon path={mdiOpenInNew} size={1} />
-              </ActionIcon>
-            </Tooltip>
+            {(isWebChallenge || isWsrxUsable) && (
+              <Tooltip label={t('challenge.content.instance.open.web')} withArrow>
+                <ActionIcon
+                  aria-label={t('challenge.content.instance.open.web')}
+                  disabled={entryIsWss}
+                  component="a"
+                  href={entryIsWss ? '#' : webEntry}
+                  target={entryIsWss ? undefined : '_blank'}
+                  rel="noreferrer"
+                >
+                  <Icon path={mdiOpenInNew} size={1} />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Group>
         }
-        rightSectionWidth={isWsrxUsable ? '6.5rem' : '5rem'}
+        rightSectionWidth={isWsrxUsable ? '6.5rem' : isWebChallenge ? '5rem' : '3rem'}
       />
       {!isPreview && (
         <Group justify="space-between" wrap="nowrap">

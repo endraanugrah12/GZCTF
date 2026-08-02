@@ -708,6 +708,7 @@ const GameChallengeEdit: FC = () => {
               <InstanceEntry
                 test
                 label={`${challenge?.title} @ ${game?.title} (test)`}
+                category={(category ?? ChallengeCategory.Misc) as ChallengeCategory}
                 disabled={disabled}
                 context={{
                   closeTime: challenge?.testContainer?.expectStopAt,
