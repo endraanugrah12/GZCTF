@@ -191,6 +191,7 @@ public class GameInstanceRepository(
             UserId = user.Id,
             ChallengeId = gameInstance.ChallengeId,
             ChallengeSlug = challenge.Title,
+            UsePublicHttpRoute = challenge.UsePublicHttpRoute,
             GameId = challenge.GameId,
             Flag = gameInstance.FlagContext?.Flag, // static challenge has no specific flag
             Image = challenge.ContainerImage,
@@ -299,6 +300,7 @@ public class GameInstanceRepository(
                 UserId = Guid.Empty,
                 ChallengeId = challenge.Id,
                 ChallengeSlug = challenge.Title,
+                UsePublicHttpRoute = challenge.UsePublicHttpRoute,
                 GameId = challenge.GameId,
                 Flag = null,
                 Image = challenge.ContainerImage,

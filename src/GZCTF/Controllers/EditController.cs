@@ -393,6 +393,7 @@ public class EditController(
                 StorageLimit = src.StorageLimit,
                 CPUCount = src.CPUCount,
                 ExposePort = src.ExposePort,
+                UsePublicHttpRoute = src.UsePublicHttpRoute,
                 NetworkMode = src.NetworkMode,
                 EnableTrafficCapture = src.EnableTrafficCapture,
                 DisableBloodBonus = src.DisableBloodBonus,
@@ -915,6 +916,7 @@ public class EditController(
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_FlagTooTrivial)]));
 
         var wasSharedManaged = res.UsesSharedContainer; // capture BEFORE the model mutates it
+        var usedPublicHttpRoute = res.UsePublicHttpRoute;
         res.Update(model);
 
         // If the shared-vs-per-team mode FLIPPED in either direction, the containers created under
@@ -925,7 +927,11 @@ public class EditController(
         //     become unmanageable zombies that keep consuming each team's ContainerCountLimit slot.
         // DestroyAllContainers reaps both per-team (via GameInstance) and the shared one, so the new
         // mode starts clean. (The IsEnabled switch below only tears down on a disable, not an edit.)
-        if (wasSharedManaged != res.UsesSharedContainer)
+        // Route mode is stamped on the Service/container at creation time too. Either change
+        // requires a clean relaunch, and one teardown covers the case where both changed.
+        if (usedPublicHttpRoute != res.UsePublicHttpRoute && res.Type.UsesAdEngine())
+            await adContainerManager.DestroyContainersForChallengeAsync(res.Id, token);
+        if (wasSharedManaged != res.UsesSharedContainer || usedPublicHttpRoute != res.UsePublicHttpRoute)
             await instanceRepository.DestroyAllContainers(res, token);
 
         switch (model.IsEnabled)
@@ -1111,6 +1117,8 @@ public class EditController(
                 TeamId = "admin",
                 UserId = user!.Id,
                 ChallengeId = challenge.Id,
+                ChallengeSlug = challenge.Title,
+                UsePublicHttpRoute = challenge.UsePublicHttpRoute,
                 GameId = challenge.GameId,
                 Flag = challenge.Type.IsDynamic() ? challenge.GenerateTestFlag() : null,
                 Image = challenge.ContainerImage,

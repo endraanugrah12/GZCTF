@@ -248,7 +248,8 @@ public class KubernetesManager : IContainerManager
                 },
                 Annotations = new Dictionary<string, string>
                 {
-                    ["gzctf.gzti.me/ChallengeSlug"] = challengeSlug
+                    ["gzctf.gzti.me/ChallengeSlug"] = challengeSlug,
+                    ["gzctf.gzti.me/PublicHttpRoute"] = config.UsePublicHttpRoute ? "true" : "false"
                 },
                 // Owned by the pod so K8s's own garbage collector removes the service
                 // whenever the pod goes away by ANY path — not just DestroyContainerAsync.

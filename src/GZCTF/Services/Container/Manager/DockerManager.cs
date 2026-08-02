@@ -386,7 +386,8 @@ public class DockerManager : IContainerManager
                     ["TeamId"] = config.TeamId,
                     ["UserId"] = config.UserId.ToString(),
                     ["ChallengeId"] = config.ChallengeId.ToString(),
-                    ["ChallengeSlug"] = ChallengeRoute.Slugify(config.ChallengeSlug)
+                    ["ChallengeSlug"] = ChallengeRoute.Slugify(config.ChallengeSlug),
+                    ["PublicHttpRoute"] = config.UsePublicHttpRoute ? "true" : "false"
                 },
             Name = DockerMetadata.GetName(config),
 

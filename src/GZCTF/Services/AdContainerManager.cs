@@ -1795,6 +1795,7 @@ public sealed class AdContainerManager(
             TeamId = $"koth-{challenge.Id}",
             ChallengeId = challenge.Id,
             ChallengeSlug = challenge.Title,
+            UsePublicHttpRoute = challenge.UsePublicHttpRoute,
             GameId = gameId,
             ExposedPort = challenge.ExposePort ?? 80,
             // No platform flag for KotH — teams plant their own token into /koth/king.
@@ -2192,6 +2193,8 @@ public sealed class AdContainerManager(
                 Image = challenge.ContainerImage,
                 TeamId = participation.TeamId.ToString(),
                 ChallengeId = challenge.Id,
+                ChallengeSlug = challenge.Title,
+                UsePublicHttpRoute = challenge.UsePublicHttpRoute,
                 GameId = participation.GameId,
                 UserId = participation.FirstUserId,
                 ExposedPort = challenge.ExposePort ?? 80,

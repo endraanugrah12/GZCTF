@@ -158,6 +158,12 @@ public sealed class ChallengeYamlModel
         public bool? EnableTrafficCapture { get; set; }
 
         /// <summary>
+        /// Expose instances through the wildcard HTTPS route instead of direct NodePorts.
+        /// </summary>
+        [YamlMember(Alias = "usePublicHttpRoute")]
+        public bool? UsePublicHttpRoute { get; set; }
+
+        /// <summary>
         /// When true, all teams share ONE container instead of one per team. Only honored for
         /// <c>type: StaticContainer</c> (the static flag is the same for everyone); ignored for
         /// every other type. Saves resources when per-team isolation isn't needed.

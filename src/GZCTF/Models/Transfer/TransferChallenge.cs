@@ -323,6 +323,11 @@ public class ContainerSection
     public int ExposePort { get; set; } = 80;
 
     /// <summary>
+    /// Whether instances use the wildcard HTTPS route instead of direct NodePorts
+    /// </summary>
+    public bool UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// Container network mode
     /// </summary>
     public NetworkMode? NetworkMode { get; set; } = Utils.NetworkMode.Open;

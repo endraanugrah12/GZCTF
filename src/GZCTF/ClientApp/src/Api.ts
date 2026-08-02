@@ -1623,6 +1623,8 @@ export interface ChallengeEditDetailModel {
   networkMode?: NetworkMode | null;
   /** Whether to record traffic */
   enableTrafficCapture?: boolean | null;
+  /** Whether instances use the wildcard HTTPS route instead of a direct NodePort entry */
+  usePublicHttpRoute?: boolean;
   /** Whether all teams share a single container (StaticContainer only) */
   enableSharedContainer?: boolean | null;
   /** Whether to disable blood bonus */
@@ -1924,6 +1926,8 @@ export interface ChallengeUpdateModel {
   networkMode?: NetworkMode | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+  /** Whether instances use the wildcard HTTPS route instead of a direct NodePort entry */
+  usePublicHttpRoute?: boolean | null;
   /** Whether all teams share a single container (StaticContainer only, disabled by default) */
   enableSharedContainer?: boolean | null;
   /** Is blood bonus disabled (enable by default) */
@@ -3204,6 +3208,8 @@ export interface ChallengeDetailModel {
   deadline?: number | null;
   /** User's rating */
   userRating?: ReviewRating;
+  /** Whether the instance entry is exposed as a wildcard HTTPS route */
+  usePublicHttpRoute?: boolean;
   /** User's comment */
   userComment?: string | null;
 }

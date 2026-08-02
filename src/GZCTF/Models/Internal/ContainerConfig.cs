@@ -21,6 +21,11 @@ public class ContainerConfig
     public string ChallengeSlug { get; set; } = "challenge";
 
     /// <summary>
+    /// Whether the route watcher should expose this service through wildcard HTTPS.
+    /// </summary>
+    public bool UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// Game ID, null for exercise containers
     /// </summary>
     public int? GameId { get; set; }

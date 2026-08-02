@@ -121,6 +121,11 @@ public class ChallengeEditDetailModel
     public bool? EnableTrafficCapture { get; set; } = false;
 
     /// <summary>
+    /// Whether instances use the wildcard HTTPS route instead of a direct NodePort entry
+    /// </summary>
+    public bool UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// Whether all teams share a single container (StaticContainer only)
     /// </summary>
     public bool? EnableSharedContainer { get; set; } = false;
@@ -220,6 +225,7 @@ public class ChallengeEditDetailModel
             ExposePort = chal.ExposePort,
             NetworkMode = chal.NetworkMode,
             EnableTrafficCapture = chal.EnableTrafficCapture,
+            UsePublicHttpRoute = chal.UsePublicHttpRoute,
             EnableSharedContainer = chal.EnableSharedContainer,
             DisableBloodBonus = chal.DisableBloodBonus,
             OriginalScore = chal.OriginalScore,

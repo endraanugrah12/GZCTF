@@ -101,6 +101,11 @@ public class ChallengeUpdateModel
     public bool? EnableTrafficCapture { get; set; }
 
     /// <summary>
+    /// Whether instances use the wildcard HTTPS route instead of a direct NodePort entry
+    /// </summary>
+    public bool? UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// Whether all teams share a single container (StaticContainer only, disabled by default)
     /// </summary>
     public bool? EnableSharedContainer { get; set; }

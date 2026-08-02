@@ -1,9 +1,9 @@
 export const getPublicHttpEntry = (
   instanceEntry: string,
   challengeBaseDomain: string | null | undefined,
-  isWebChallenge: boolean
+  usePublicHttpRoute: boolean
 ): string | null => {
-  if (!isWebChallenge || !instanceEntry || !challengeBaseDomain) return null
+  if (!usePublicHttpRoute || !instanceEntry || !challengeBaseDomain) return null
 
   const host = instanceEntry.split(':', 1)[0].toLowerCase()
   const baseDomain = challengeBaseDomain.replace(/^\.+|\.+$/g, '').toLowerCase()

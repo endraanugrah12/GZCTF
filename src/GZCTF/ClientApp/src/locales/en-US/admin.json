@@ -295,6 +295,10 @@
           "description": "Port of container services",
           "label": "Service Port"
         },
+        "public_http_route": {
+          "description": "Expose this HTTP service through its wildcard HTTPS subdomain instead of showing host:NodePort. Existing instances are restarted when this changes.",
+          "label": "Use Public HTTPS Route"
+        },
         "solve_count": "Solves",
         "storage_limit": {
           "description": "Storage (including image)",

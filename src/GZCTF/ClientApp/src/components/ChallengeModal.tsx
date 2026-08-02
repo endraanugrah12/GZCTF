@@ -372,7 +372,7 @@ export const ChallengeModal: FC<ChallengeModalProps> = (props) => {
   const instance = withInstance && (
     <InstanceEntry
       label={`${challenge.title} @ ${gameTitle}`}
-      category={challenge.category}
+      usePublicHttpRoute={challenge.usePublicHttpRoute}
       context={challenge.context!}
       onCreate={onCreate}
       onExtend={onExtend}

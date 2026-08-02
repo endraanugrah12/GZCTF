@@ -68,6 +68,11 @@ public class ChallengeDetailModel
     public ReviewRating UserRating { get; set; } = ReviewRating.None;
 
     /// <summary>
+    /// Whether the instance entry is exposed as a wildcard HTTPS route
+    /// </summary>
+    public bool UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// User's comment
     /// </summary>
     public string? UserComment { get; set; }
@@ -86,6 +91,7 @@ public class ChallengeDetailModel
             Limit = gameInstance.Challenge.SubmissionLimit,
             Deadline = gameInstance.Challenge.DeadlineUtc,
             Attempts = attemptCount,
+            UsePublicHttpRoute = gameInstance.Challenge.UsePublicHttpRoute,
             Context = new()
             {
                 InstanceEntry = gameInstance.Container?.Entry,

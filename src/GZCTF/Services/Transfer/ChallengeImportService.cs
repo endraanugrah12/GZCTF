@@ -314,12 +314,18 @@ public sealed class ChallengeImportService(
             // their prior status).
         }
 
+        var usedPublicHttpRoute = challenge.UsePublicHttpRoute;
         ApplyYamlToChallenge(challenge, model, type, image, opts, packageDir);
         if (originalArchiveBlobPath is not null)
             challenge.OriginalArchiveBlobPath = originalArchiveBlobPath;
         if (sourceYamlPath is not null)
             challenge.SourceYamlPath = sourceYamlPath;
         await context.SaveChangesAsync(token);
+
+        if (usedPublicHttpRoute != challenge.UsePublicHttpRoute && challenge.Type.UsesAdEngine())
+            await adContainerManager.DestroyContainersForChallengeAsync(challenge.Id, token);
+        if (usedPublicHttpRoute != challenge.UsePublicHttpRoute)
+            await instanceRepository.DestroyAllContainers(challenge, token);
 
         await SyncFlagsAsync(challenge, model.Flags ?? [], token);
         await SyncAttachmentAsync(challenge, packageDir, model.Provide, token);
@@ -848,6 +854,7 @@ public sealed class ChallengeImportService(
             if (Enum.TryParse<NetworkMode>(m.Container?.NetworkMode ?? "", true, out var nm))
                 c.NetworkMode = nm;
             c.EnableTrafficCapture = m.Container?.EnableTrafficCapture ?? c.EnableTrafficCapture;
+            c.UsePublicHttpRoute = m.Container?.UsePublicHttpRoute ?? c.UsePublicHttpRoute;
             // Shared container: one container for all teams. Only meaningful for StaticContainer
             // (single static flag) — force off otherwise, matching GameChallenge.Update.
             c.EnableSharedContainer = type == ChallengeType.StaticContainer

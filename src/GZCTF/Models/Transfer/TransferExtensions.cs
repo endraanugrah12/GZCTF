@@ -144,6 +144,7 @@ public static class TransferExtensions
                     CpuCount = challenge.CPUCount ?? 1,
                     StorageLimit = challenge.StorageLimit ?? 256,
                     ExposePort = challenge.ExposePort ?? 80,
+                    UsePublicHttpRoute = challenge.UsePublicHttpRoute,
                     FileName = challenge.FileName,
                     NetworkMode = challenge.NetworkMode ?? NetworkMode.Open
                 };
@@ -337,6 +338,7 @@ public static class TransferExtensions
                 challenge.CPUCount = transfer.Container.CpuCount;
                 challenge.StorageLimit = transfer.Container.StorageLimit;
                 challenge.ExposePort = transfer.Container.ExposePort;
+                challenge.UsePublicHttpRoute = transfer.Container.UsePublicHttpRoute;
                 challenge.FileName = transfer.Container.FileName;
                 challenge.NetworkMode = transfer.Container.NetworkMode;
             }

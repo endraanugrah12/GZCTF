@@ -47,6 +47,7 @@ public class ChallengeYamlSerializerTest
         ch.CPUCount = 2;
         ch.StorageLimit = 1024;
         ch.ExposePort = 1337;
+        ch.UsePublicHttpRoute = true;
 
         var yaml = ChallengeYamlSerializer.Serialize(ch, ["flag{c}"]);
 
@@ -56,6 +57,7 @@ public class ChallengeYamlSerializerTest
         Assert.Contains("cpuCount: 2", yaml);
         Assert.Contains("storageLimit: 1024", yaml);
         Assert.Contains("exposePort: 1337", yaml);
+        Assert.Contains("usePublicHttpRoute: true", yaml);
     }
 
     [Fact]

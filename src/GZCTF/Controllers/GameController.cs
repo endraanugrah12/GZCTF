@@ -1446,6 +1446,7 @@ public class GameController(
                 Score = 0,
                 Limit = 0,
                 Deadline = rawChallenge.DeadlineUtc,
+                UsePublicHttpRoute = rawChallenge.UsePublicHttpRoute,
                 Context = new ClientFlagContext
                 {
                     // Local → /assets/{hash}/{name}; Remote → /assets/remote/{id}/{name}

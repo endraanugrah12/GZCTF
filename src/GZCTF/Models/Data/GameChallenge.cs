@@ -20,6 +20,12 @@ public class GameChallenge : Challenge
     public bool EnableSharedContainer { get; set; }
 
     /// <summary>
+    /// Whether instances are exposed through the wildcard HTTPS challenge route.
+    /// Disabled instances retain their direct host and NodePort entry.
+    /// </summary>
+    public bool UsePublicHttpRoute { get; set; }
+
+    /// <summary>
     /// Whether to disable blood bonus
     /// </summary>
     public bool DisableBloodBonus { get; set; }
@@ -126,6 +132,7 @@ public class GameChallenge : Challenge
 
         // Container only
         EnableTrafficCapture = Type.IsContainer() && (model.EnableTrafficCapture ?? EnableTrafficCapture);
+        UsePublicHttpRoute = Type.IsContainer() && (model.UsePublicHttpRoute ?? UsePublicHttpRoute);
 
         // Shared instance is only meaningful for StaticContainer (single shared static flag);
         // force it off for every other type so a stale toggle can't take effect after a retype.

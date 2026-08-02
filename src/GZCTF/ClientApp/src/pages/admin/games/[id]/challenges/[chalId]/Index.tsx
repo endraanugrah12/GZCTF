@@ -708,7 +708,7 @@ const GameChallengeEdit: FC = () => {
               <InstanceEntry
                 test
                 label={`${challenge?.title} @ ${game?.title} (test)`}
-                category={(category ?? ChallengeCategory.Misc) as ChallengeCategory}
+                usePublicHttpRoute={challengeInfo.usePublicHttpRoute ?? false}
                 disabled={disabled}
                 context={{
                   closeTime: challenge?.testContainer?.expectStopAt,
@@ -786,6 +786,17 @@ const GameChallengeEdit: FC = () => {
                   if (isNaN(number)) return
                   setChallengeInfo({ ...challengeInfo, storageLimit: number })
                 }}
+              />
+            </Grid.Col>
+            <Grid.Col span={4} display="flex" className={misc.alignCenter}>
+              <Switch
+                disabled={disabled}
+                checked={challengeInfo.usePublicHttpRoute ?? false}
+                label={SwitchLabel(
+                  t('admin.content.games.challenges.public_http_route.label'),
+                  t('admin.content.games.challenges.public_http_route.description')
+                )}
+                onChange={(e) => setChallengeInfo({ ...challengeInfo, usePublicHttpRoute: e.target.checked })}
               />
             </Grid.Col>
             <Grid.Col span={4} display="flex" className={misc.alignCenter}>
