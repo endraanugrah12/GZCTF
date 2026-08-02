@@ -15,6 +15,7 @@ using GZCTF.Services.Transfer;
 using GZCTF.Services.Webhook;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace GZCTF.Extensions.Startup;
@@ -43,6 +44,16 @@ internal static class ServicesExtension
             builder.AddConfig<ContainerPolicy>();
             builder.AddConfig<ContainerProvider>();
             builder.AddConfig<PublicChallengeRouteConfig>();
+            // EntityConfiguration is registered after environment/appsettings
+            // and can carry a legacy PlatformProxy value from a migrated DB.
+            // Apply these after every provider has bound so Kubernetes always
+            // uses the wildcard ingress route controller in this fork.
+            builder.Services.PostConfigure<ContainerProvider>(
+                KubernetesDirectRouteDefaults.ApplyPortMapping);
+            builder.Services.AddOptions<PublicChallengeRouteConfig>()
+                .PostConfigure<IOptions<ContainerProvider>>(
+                    (route, provider) =>
+                        KubernetesDirectRouteDefaults.ApplyRouteBaseDomain(route, provider.Value));
             builder.AddConfig<SubmissionEvidencePolicy>();
             builder.Services.PostConfigure<SubmissionEvidencePolicy>(policy =>
                 policy.ApplyAllowedLinkHostsOverride());
