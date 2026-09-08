@@ -1,6 +1,6 @@
 import { Card, LoadingOverlay, Stack, Text, Title } from '@mantine/core'
 import { showNotification } from '@mantine/notifications'
-import { mdiChartLine, mdiExclamationThick, mdiFileDocumentCheckOutline, mdiFlagOutline, mdiMonitorEye, mdiUpload } from '@mdi/js'
+import { mdiChartLine, mdiExclamationThick, mdiFileDocumentCheckOutline, mdiFlagOutline, mdiMonitorEye, mdiUpload, mdiWrenchOutline } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
@@ -57,7 +57,16 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
 
   const finished = dayjs() > dayjs(game?.end ?? new Date())
 
-  const pages = [
+  const pages: Array<{
+    icon: string
+    title: string
+    path: string
+    link: string
+    requireJoin: boolean
+    requireRole: Role
+    hidden?: boolean
+    to?: string
+  }> = [
     {
       icon: mdiFlagOutline,
       title: t('game.tab.challenge'),
@@ -99,6 +108,15 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
       requireJoin: false,
       requireRole: Role.Monitor,
     },
+    {
+      icon: mdiWrenchOutline,
+      title: t('game.tab.admin_challenges', 'Manage challenges'),
+      path: 'admin-challenges',
+      link: 'admin-challenges',
+      to: `/admin/games/${numId}/challenges`,
+      requireJoin: false,
+      requireRole: Role.Admin,
+    },
   ]
 
   const filteredPages = pages
@@ -119,7 +137,8 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
 
   const onChange = (active: number, tabKey: string) => {
     setActiveTab(active)
-    navigate(`/games/${numId}/${tabKey}`)
+    const page = filteredPages.find((p) => p.link === tabKey)
+    navigate(page?.to ?? `/games/${numId}/${tabKey}`)
   }
 
   usePageTitle(game?.title)

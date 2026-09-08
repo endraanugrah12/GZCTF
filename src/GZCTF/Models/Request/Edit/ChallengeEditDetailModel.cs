@@ -157,7 +157,7 @@ public class ChallengeEditDetailModel
     /// </summary>
     [Required]
     [Range(0, 1)]
-    public double MinScoreRate { get; set; } = 0.25;
+    public double MinScoreRate { get; set; } = 0.20;
 
     /// <summary>
     /// Difficulty coefficient

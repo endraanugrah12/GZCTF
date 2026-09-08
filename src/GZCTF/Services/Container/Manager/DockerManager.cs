@@ -344,7 +344,10 @@ public class DockerManager : IContainerManager
                 TaskStatus.Failed,
                 LogLevel.Warning);
 
-        if (!string.IsNullOrEmpty(_routeBaseDomain))
+        // A wildcard route is opt-in per challenge.  The normal path deliberately
+        // keeps Docker's randomized published port and the configured public host,
+        // so TCP/Pwn challenges can be reached as `nc host port`.
+        if (config.UsePublicHttpRoute && !string.IsNullOrEmpty(_routeBaseDomain))
             container.PublicIP = ChallengeRoute.GetHost(config, _routeBaseDomain);
         else if (!string.IsNullOrEmpty(_meta.PublicEntry))
             container.PublicIP = _meta.PublicEntry;

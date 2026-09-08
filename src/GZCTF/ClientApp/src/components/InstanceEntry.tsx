@@ -20,14 +20,15 @@ import { HandleWsrxError, useWsrx } from '@Components/WsrxProvider'
 import { getProxyUrl as getProxyEntry } from '@Utils/Shared'
 import { useConfig } from '@Hooks/useConfig'
 import { useTicker } from '@Hooks/useTicker'
-import { ClientFlagContext, ContainerPortMappingType } from '@Api'
-import { getPublicHttpEntry } from '@Utils/InstanceRoute'
+import api, { ClientFlagContext, ContainerPortMappingType } from '@Api'
+import { getPublicHttpEntry, getTcpCommand } from '@Utils/InstanceRoute'
 import classes from '@Styles/InstanceEntry.module.css'
 import misc from '@Styles/Misc.module.css'
 
 dayjs.extend(duration)
 
 interface InstanceEntryProps {
+  readinessUrl?: string
   test?: boolean
   label?: string
   usePublicHttpRoute?: boolean
@@ -84,6 +85,39 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
 
   const [forceShowOriginal, setForceShowOriginal] = useState(false)
   const [withContainer, setWithContainer] = useState(!!context.instanceEntry)
+  const [readiness, setReadiness] = useState<'starting' | 'ready' | 'timeout'>('starting')
+  const [readinessAttempt, setReadinessAttempt] = useState(0)
+
+  useEffect(() => {
+    if (!context.instanceEntry || !props.readinessUrl) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = Date.now() + 20_000
+    setReadiness('starting')
+    const check = async () => {
+      try {
+        const response = await api.instance.get<{ ready: boolean }>(props.readinessUrl!, {
+          signal: controller.signal, timeout: 2500,
+        })
+        if (controller.signal.aborted) return
+        if (response.data.ready) {
+          setReadiness('ready')
+          return
+        }
+      } catch {
+        if (controller.signal.aborted) return
+      }
+      if (Date.now() >= deadline) setReadiness('timeout')
+      else timer = setTimeout(check, 500)
+    }
+    void check()
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+    }
+  }, [context.instanceEntry, props.readinessUrl, readinessAttempt])
+
+  const waitingForService = !!props.readinessUrl && readiness !== 'ready'
 
   // Shared container: one container serves every team. Players can start/extend it but not
   // destroy it (admin-only), and on idle-expiry we just flip back to the start view locally.
@@ -175,7 +209,9 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
   const publicHttpEntry = !useLocal
     ? getPublicHttpEntry(entry, config.challengeBaseDomain, props.usePublicHttpRoute ?? false)
     : null
-  const displayEntry = publicHttpEntry ?? entry
+  // Directly published instances are TCP by default. Displaying the complete
+  // command removes ambiguity for Pwn users and makes the copy action useful.
+  const displayEntry = publicHttpEntry ?? (entryIsWss ? entry : getTcpCommand(entry))
   const webEntry = publicHttpEntry
     ?? `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
 
@@ -219,6 +255,18 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
 
   return (
     <Stack gap="sm" w="100%">
+      {waitingForService && (
+        <Group justify="space-between">
+          <Text size="sm" c={readiness === 'timeout' ? 'orange' : 'dimmed'}>
+            {readiness === 'timeout'
+              ? 'The container started, but its service is not ready yet. Retry the check in a moment.'
+              : 'Starting service — checking the connection…'}
+          </Text>
+          {readiness === 'timeout' && (
+            <Button size="xs" onClick={() => setReadinessAttempt((value) => value + 1)}>Retry check</Button>
+          )}
+        </Group>
+      )}
       <TextInput
         label={
           <Text size="sm" fw="bold">
@@ -245,7 +293,7 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
             className={classes.icon}
           />
         }
-        value={displayEntry}
+        value={waitingForService ? 'Waiting for service…' : displayEntry}
         readOnly
         classNames={{ input: misc.ffmono }}
         rightSection={
@@ -273,7 +321,7 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
               </Tooltip>
             )}
             <Tooltip label={t('common.button.copy')} withArrow>
-              <ActionIcon aria-label={t('common.button.copy')} onClick={onCopyEntry}>
+              <ActionIcon disabled={waitingForService} aria-label={t('common.button.copy')} onClick={onCopyEntry}>
                 <Icon path={mdiContentCopy} size={1} />
               </ActionIcon>
             </Tooltip>
@@ -281,9 +329,9 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
               <Tooltip label={t('challenge.content.instance.open.web')} withArrow>
                 <ActionIcon
                   aria-label={t('challenge.content.instance.open.web')}
-                  disabled={entryIsWss}
+                  disabled={entryIsWss || waitingForService}
                   component="a"
-                  href={entryIsWss ? '#' : webEntry}
+                  href={entryIsWss || waitingForService ? undefined : webEntry}
                   target={entryIsWss ? undefined : '_blank'}
                   rel="noreferrer"
                 >

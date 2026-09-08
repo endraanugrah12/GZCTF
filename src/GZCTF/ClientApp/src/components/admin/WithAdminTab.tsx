@@ -10,6 +10,7 @@ import {
   mdiSitemapOutline,
   mdiSourceBranch,
   mdiViewDashboard,
+  mdiPaletteOutline,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useState } from 'react'
@@ -60,6 +61,7 @@ export const WithAdminTab: FC<AdminTabProps> = ({ head, headProps, isLoading, ch
     },
     { icon: mdiFileDocumentOutline, title: t('admin.tab.logs'), path: 'logs' },
     { icon: mdiSitemapOutline, title: t('admin.tab.settings'), path: 'settings' },
+    { icon: mdiPaletteOutline, title: 'Appearance', path: 'appearance' },
   ]
 
   const { user } = useUser()

@@ -11,6 +11,8 @@ namespace GZCTF.Models.Data;
 [MemoryPackable]
 public partial class UserInfo : IdentityUser<Guid>
 {
+    public bool HideFromScoreboard { get; set; }
+
     /// <summary>
     /// Override Guid to use Ulid
     /// </summary>
@@ -104,6 +106,7 @@ public partial class UserInfo : IdentityUser<Guid>
         RealName = model.RealName ?? RealName;
         PhoneNumber = model.Phone ?? PhoneNumber;
         EmailConfirmed = model.EmailConfirmed ?? EmailConfirmed;
+        HideFromScoreboard = model.HideFromScoreboard ?? HideFromScoreboard;
     }
 
     /// <summary>

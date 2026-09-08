@@ -5,6 +5,7 @@ import { Icon } from '@mdi/react'
 import { FC } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Empty } from '@Components/Empty'
+import { Markdown } from '@Components/MarkdownRenderer'
 import { PostCard } from '@Components/PostCard'
 import { RecentGame } from '@Components/RecentGame'
 import { WithNavBar } from '@Components/WithNavbar'
@@ -12,12 +13,14 @@ import { MobilePostCard } from '@Components/mobile/PostCard'
 import { RecentGameCarousel } from '@Components/mobile/RecentGameCarousel'
 import { showErrorMsg } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
+import { useAppearance } from '@Hooks/useAppearance'
 import { useRecentGames } from '@Hooks/useGame'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import api, { PostInfoModel } from '@Api'
 import classes from '@Styles/Index.module.css'
 
 const Home: FC = () => {
+  const appearance = useAppearance()
   const { t } = useTranslation()
 
   const { data: posts, mutate } = api.info.useInfoGetLatestPosts({
@@ -65,6 +68,7 @@ const Home: FC = () => {
   return (
     <WithNavBar minWidth={0} withFooter withHeader stickyHeader>
       <Stack justify="flex-start">
+        {appearance.homeMarkdown && <Markdown className="player-home-content" source={appearance.homeMarkdown} />}
         {isMobile && showGames && showGames.length > 0 && <RecentGameCarousel games={showGames} />}
         <Stack align="center">
           <Group wrap="nowrap" gap={4} justify="space-between" align="flex-start" w="100%">
@@ -87,12 +91,8 @@ const Home: FC = () => {
                     </Stack>
                   ))
                 : isMobile
-                  ? posts.map((post) => (
-                      <MobilePostCard key={post.id} post={post} onTogglePinned={onTogglePinned} />
-                    ))
-                  : posts.map((post) => (
-                      <PostCard key={post.id} post={post} onTogglePinned={onTogglePinned} />
-                    ))}
+                  ? posts.map((post) => <MobilePostCard key={post.id} post={post} onTogglePinned={onTogglePinned} />)
+                  : posts.map((post) => <PostCard key={post.id} post={post} onTogglePinned={onTogglePinned} />)}
             </Stack>
             {!isMobile && (
               <nav className={classes.wrapper}>
@@ -103,9 +103,7 @@ const Home: FC = () => {
                       <Title order={3}>{t('common.content.home.recent_games')}</Title>
                     </Group>
                     {showGames && showGames.length === 0 ? (
-                      <Empty
-                        description={t('common.content.home.no_recent_games', 'No recent games')}
-                      />
+                      <Empty description={t('common.content.home.no_recent_games', 'No recent games')} />
                     ) : (
                       showGames?.map((game) => <RecentGame key={game.id} game={game} />)
                     )}

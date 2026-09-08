@@ -398,8 +398,7 @@ public class GameController(
         var now = DateTimeOffset.UtcNow;
         var isFrozenView = !isMonitor
                            && game.FreezeTimeUtc is { } freeze
-                           && now >= freeze
-                           && now < game.EndTimeUtc;
+                           && now >= freeze;
 
         // Defensive: shared HTTP caches/bf-cache must not serve a frozen body to an admin
         // (or vice-versa) just because the URL matches.
@@ -1158,8 +1157,7 @@ public class GameController(
         var isMonitor = await ContextHelper.HasMonitor(HttpContext);
         var isFrozenView = !isMonitor
                            && game.FreezeTimeUtc is { } freeze
-                           && now >= freeze
-                           && now < game.EndTimeUtc;
+                           && now >= freeze;
         Response.Headers.Append("Vary", "Cookie");
 
         var scoreboard = isFrozenView
@@ -1349,8 +1347,7 @@ public class GameController(
         var isMonitor = await ContextHelper.HasMonitor(HttpContext);
         var isFrozenView = !isMonitor
                            && game.FreezeTimeUtc is { } freeze
-                           && now >= freeze
-                           && now < game.EndTimeUtc;
+                           && now >= freeze;
 
         var scoreboard = isFrozenView
             ? await gameRepository.GetFrozenScoreboard(game, token)
@@ -2041,6 +2038,28 @@ public class GameController(
             TaskStatus.Success);
 
         return Ok();
+    }
+
+    [RequireUser]
+    [HttpGet("{id:int}/Container/{challengeId:int}/Readiness")]
+    // Use the global per-user limiter; the named Query bucket is shared by
+    // all players and would throttle simultaneous challenge startups.
+    public async Task<IActionResult> ContainerReadiness(int id, int challengeId, CancellationToken token)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var context = await GetContextInfo(id, token: token);
+        if (context.Result is not null) return context.Result;
+        var permission = await divisionRepository.GetPermission(context.Participation?.DivisionId, challengeId, token);
+        if (!permission.HasFlag(GamePermission.ViewChallenge)) return NotFound();
+        var instance = await gameInstanceRepository.GetInstance(context.Participation!, challengeId, token);
+        if (instance is null || !instance.Challenge.IsEnabled ||
+            instance.Challenge.ReviewStatus != ChallengeReviewStatus.Active) return NotFound();
+        var container = instance.Challenge.UsesSharedContainer
+            ? await gameInstanceRepository.GetSharedContainer(instance.Challenge, token)
+            : instance.Container;
+        var ready = container is not null &&
+            await Services.Container.ContainerReadiness.CheckAsync(container, instance.Challenge.UsePublicHttpRoute, token);
+        return Ok(new { ready });
     }
 
     /// <summary>

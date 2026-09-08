@@ -1216,8 +1216,28 @@ public class AdminController(
                 return HandleIdentityError(result.Errors);
         }
 
+        var visibilityChanged = model.HideFromScoreboard.HasValue &&
+                                model.HideFromScoreboard.Value != user.HideFromScoreboard;
         user.UpdateUserInfo(model);
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return HandleIdentityError(updateResult.Errors);
+
+        if (visibilityChanged)
+        {
+            var db = serviceProvider.GetRequiredService<AppDbContext>();
+            var gameIds = await db.UserParticipations.Where(p => p.UserId == user.Id)
+                .Select(p => p.GameId).Distinct().ToListAsync();
+            foreach (var gameId in gameIds)
+            {
+                await cacheHelper.RemoveAsync(CacheKey.ScoreBoard(gameId), CancellationToken.None);
+                await cacheHelper.RemoveAsync(CacheKey.ScoreBoardFrozen(gameId), CancellationToken.None);
+                await cacheHelper.FlushScoreboardCache(gameId, CancellationToken.None);
+                await cacheHelper.FlushAdScoreboardCacheIncludingFrozen(gameId, CancellationToken.None);
+            }
+            logger.LogInformation("Account {UserId} scoreboard visibility changed: hidden={Hidden}",
+                user.Id, user.HideFromScoreboard);
+        }
 
         return Ok();
     }

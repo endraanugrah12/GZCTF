@@ -17,6 +17,7 @@ import { localCacheProvider } from '@Utils/Cache'
 import { useLanguage } from '@Utils/I18n'
 import { useCustomTheme } from '@Utils/ThemeOverride'
 import { useBanner } from '@Hooks/useConfig'
+import { AppearanceProvider } from '@Hooks/useAppearance'
 import { fetcher as rawFetcher } from '@Api'
 import '@mantine/core/styles.css'
 import '@mantine/dates/styles.css'
@@ -70,6 +71,10 @@ const authAwareFetcher = async (args: Parameters<typeof rawFetcher>[0]) => {
 }
 
 export const App: FC = () => {
+  return <AppearanceProvider><AppContent /></AppearanceProvider>
+}
+
+const AppContent: FC = () => {
   useBanner()
 
   const { t } = useTranslation()

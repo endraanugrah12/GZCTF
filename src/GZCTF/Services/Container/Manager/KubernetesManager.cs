@@ -329,7 +329,7 @@ public class KubernetesManager : IContainerManager
         if (!_meta.ExposePort)
             return container;
 
-        container.PublicIP = !string.IsNullOrEmpty(_routeBaseDomain)
+        container.PublicIP = config.UsePublicHttpRoute && !string.IsNullOrEmpty(_routeBaseDomain)
             ? ChallengeRoute.GetHost(config, _routeBaseDomain)
             : _meta.PublicEntry;
         container.PublicPort = service.Spec.Ports[0].NodePort;

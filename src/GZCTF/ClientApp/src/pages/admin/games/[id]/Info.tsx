@@ -1,11 +1,14 @@
 import {
   ActionIcon,
+  Alert,
   Button,
+  Checkbox,
   Center,
   Grid,
   Group,
   Image,
   Input,
+  Modal,
   NumberInput,
   SimpleGrid,
   Stack,
@@ -27,6 +30,7 @@ import {
   mdiDeleteOutline,
   mdiDiceMultiple,
   mdiDownload,
+  mdiRefresh,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
@@ -57,6 +61,10 @@ const GameInfoEdit: FC = () => {
   const [end, setEnd] = useInputState(dayjs())
   const [freeze, setFreeze] = useState<dayjs.Dayjs | null>(null)
   const [wpddl, setWpddl] = useInputState(3)
+  const [resetOpened, setResetOpened] = useState(false)
+  const [resetNotifications, setResetNotifications] = useState(true)
+  const [resetSolves, setResetSolves] = useState(true)
+  const [resetConfirmation, setResetConfirmation] = useState('')
 
   const modals = useModals()
   const clipboard = useClipboard()
@@ -207,6 +215,31 @@ const GameInfoEdit: FC = () => {
     await downloadBlob(api.edit.editExportGame(game.id, { format: 'blob' }), setDisabled, t)
   }
 
+  const onResetActivity = async () => {
+    if (!game?.id || resetConfirmation.trim() !== 'RESET' || (!resetNotifications && !resetSolves)) return
+
+    setDisabled(true)
+    try {
+      await api.instance.post(`/api/edit/games/${game.id}/activity/reset`, {
+        resetNotifications,
+        resetSolves,
+        confirmation: resetConfirmation,
+      })
+      setResetOpened(false)
+      setResetConfirmation('')
+      showNotification({
+        color: 'teal',
+        message: 'Selected game activity has been reset.',
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+      mutate()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
+  }
+
   return (
     <WithGameEditTab
       headProps={{ justify: 'apart' }}
@@ -240,6 +273,18 @@ const GameInfoEdit: FC = () => {
           </Button>
           <Button leftSection={<Icon path={mdiClipboard} size={1} />} disabled={disabled} onClick={onCopyPublicKey}>
             {t('admin.button.games.copy_public_key')}
+          </Button>
+          <Button
+            disabled={disabled}
+            color="orange"
+            leftSection={<Icon path={mdiRefresh} size={1} />}
+            variant="outline"
+            onClick={() => {
+              setResetConfirmation('')
+              setResetOpened(true)
+            }}
+          >
+            Reset activity
           </Button>
           <Button
             leftSection={<Icon path={mdiContentSaveOutline} size={1} />}
@@ -647,6 +692,47 @@ const GameInfoEdit: FC = () => {
           </Input.Wrapper>
         </Grid.Col>
       </Grid>
+      <Modal
+        opened={resetOpened}
+        onClose={() => !disabled && setResetOpened(false)}
+        title="Reset game activity"
+        centered
+      >
+        <Stack gap="sm">
+          <Alert color="red" variant="light">
+            This cannot be undone. Submission history and evidence are retained for audit, but reset solves disappear from the scoreboard.
+          </Alert>
+          <Checkbox
+            checked={resetNotifications}
+            onChange={(e) => setResetNotifications(e.currentTarget.checked)}
+            label="Delete all game notifications, including blood notices"
+          />
+          <Checkbox
+            checked={resetSolves}
+            onChange={(e) => setResetSolves(e.currentTarget.checked)}
+            label="Reset all solves, ranks, scores, and bloods"
+          />
+          <TextInput
+            label="Type RESET to confirm"
+            value={resetConfirmation}
+            onChange={(e) => setResetConfirmation(e.currentTarget.value)}
+            autoComplete="off"
+            data-autofocus
+          />
+          <Group justify="flex-end">
+            <Button variant="default" disabled={disabled} onClick={() => setResetOpened(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              disabled={disabled || resetConfirmation.trim() !== 'RESET' || (!resetNotifications && !resetSolves)}
+              onClick={onResetActivity}
+            >
+              Reset selected activity
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </WithGameEditTab>
   )
 }

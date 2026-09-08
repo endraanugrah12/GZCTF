@@ -814,6 +814,71 @@ public class EditController(
     }
 
     /// <summary>
+    /// Reset selected game activity while retaining the audit trail.
+    /// </summary>
+    /// <remarks>
+    /// Resetting solves removes FirstSolve records (the authoritative scoreboard
+    /// facts), not historical submissions. A later accepted flag submission becomes
+    /// the team's new solve. Resetting notifications removes both manual and
+    /// automatic/blood notices for this game.
+    /// </remarks>
+    [RequireGameAdmin]
+    [HttpPost("Games/{id:int}/Activity/Reset")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetGameActivity([FromRoute] int id,
+        [FromBody] GameActivityResetModel model, CancellationToken token)
+    {
+        if (!model.ResetNotifications && !model.ResetSolves)
+            return BadRequest(new RequestResponse("Choose notifications, solves, or both."));
+
+        if (!string.Equals(model.Confirmation?.Trim(), "RESET", StringComparison.Ordinal))
+            return BadRequest(new RequestResponse("Type RESET to confirm this destructive operation."));
+
+        if (!await gameRepository.HasGameAsync(id, token))
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(token);
+
+        if (model.ResetSolves)
+        {
+            // FirstSolve is the source of truth for scores, ranks, bloods, and
+            // challenge solved state. Keep submitted flags/evidence intact for
+            // audit and moderation; deleting submissions would also lose that trail.
+            await dbContext.FirstSolves
+                .Where(s => s.Participation.GameId == id)
+                .ExecuteDeleteAsync(token);
+        }
+
+        if (model.ResetNotifications)
+        {
+            await dbContext.GameNotices
+                .Where(n => n.GameId == id)
+                .ExecuteDeleteAsync(token);
+        }
+
+        await transaction.CommitAsync(token);
+
+        if (model.ResetSolves)
+        {
+            await cacheHelper.FlushScoreboardCache(id, token);
+            if (await dbContext.GameChallenges.AnyAsync(c => c.GameId == id &&
+                    (c.Type == ChallengeType.AttackDefense || c.Type == ChallengeType.KingOfTheHill), token))
+                await cacheHelper.FlushAdScoreboardCacheIncludingFrozen(id, token);
+        }
+
+        if (model.ResetNotifications)
+            await cacheHelper.RemoveAsync(CacheKey.GameNotice(id), token);
+
+        logger.LogInformation("Game {GameId} activity reset: notifications={Notifications}, solves={Solves}",
+            id, model.ResetNotifications, model.ResetSolves);
+
+        return Ok();
+    }
+
+    /// <summary>
     /// Get Game Challenge
     /// </summary>
     /// <remarks>

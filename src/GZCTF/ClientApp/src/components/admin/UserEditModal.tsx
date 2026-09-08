@@ -9,6 +9,7 @@ import {
   Radio,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   Textarea,
   TextInput,
@@ -61,7 +62,7 @@ export const UserEditModal: FC<UserEditModalProps> = (props) => {
         message: t('admin.notification.users.updated'),
         icon: <Icon path={mdiCheck} size={1} />,
       })
-      mutateUser({ ...user, ...profile })
+      mutateUser({ ...user, ...profile, hideFromScoreboard: profile.hideFromScoreboard ?? user.hideFromScoreboard })
       modalProps.onClose()
     } catch (e) {
       showErrorMsg(e, t)
@@ -116,6 +117,13 @@ export const UserEditModal: FC<UserEditModalProps> = (props) => {
             ))}
           </Group>
         </Radio.Group>
+        <Switch
+          label="Hide from scoreboard"
+          description="Hide teams containing this account from standings in all games. Hidden teams do not affect Jeopardy scores or blood bonuses. Submissions and evidence are retained. Turn off to restore their standings."
+          checked={profile.hideFromScoreboard ?? false}
+          disabled={disabled}
+          onChange={(event) => setProfile({ ...profile, hideFromScoreboard: event.currentTarget.checked })}
+        />
         <SimpleGrid cols={2}>
           <TextInput
             label={t('account.label.email')}

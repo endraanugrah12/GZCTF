@@ -125,7 +125,7 @@ public class ChallengeYamlSerializerTest
     public void Serialize_EmptyDefaults_OmitsNoiseFields()
     {
         var ch = StaticAttachment();
-        // Leave Hints/FlagTemplate null; MinScoreRate default 0.25;
+        // Leave Hints/FlagTemplate null; MinScoreRate default 0.20;
         // Difficulty default 5; SubmissionLimit default 0; etc.
 
         var yaml = ChallengeYamlSerializer.Serialize(ch, []);

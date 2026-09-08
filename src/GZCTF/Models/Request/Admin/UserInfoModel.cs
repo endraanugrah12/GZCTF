@@ -7,6 +7,8 @@ namespace GZCTF.Models.Request.Admin;
 /// </summary>
 public class UserInfoModel
 {
+    public bool HideFromScoreboard { get; set; }
+
     /// <summary>
     /// User ID
     /// </summary>
@@ -76,6 +78,7 @@ public class UserInfoModel
         new()
         {
             Id = user.Id,
+            HideFromScoreboard = user.HideFromScoreboard,
             IP = user.IP,
             Bio = user.Bio,
             Role = user.Role,

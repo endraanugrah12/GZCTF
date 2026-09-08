@@ -376,6 +376,7 @@ public class GameRepository(
                 .AsNoTracking()
                 .IgnoreAutoIncludes()
                 .Where(p => p.GameId == game.Id && p.Status == ParticipationStatus.Accepted)
+                .Where(p => !p.Members.Any(m => m.User.HideFromScoreboard))
                 .Include(p => p.Team)
                 .Select(p => new ScoreboardItem
                 {

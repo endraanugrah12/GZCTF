@@ -670,9 +670,9 @@ public class ContainerProvider
 }
 
 /// <summary>
-/// Public DNS names used for player challenge instances.  Docker still allocates
-/// a distinct host port for every TCP service; the hostname keeps that host IP
-/// out of the player-facing UI.
+/// Public DNS names used only by challenges whose organizer selects the HTTPS
+/// connection method. Other container challenges use <see cref="ContainerProvider.PublicEntry"/>
+/// with the provider's randomized published port.
 /// </summary>
 public class PublicChallengeRouteConfig
 {

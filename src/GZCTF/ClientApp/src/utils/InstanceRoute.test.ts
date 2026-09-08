@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getPublicHttpEntry } from './InstanceRoute'
+import { getPublicHttpEntry, getTcpCommand } from './InstanceRoute'
+
+test('formats copyable nc commands with separate host and port arguments', () => {
+  assert.equal(getTcpCommand('pwn.example.com:32784'), 'nc pwn.example.com 32784')
+  assert.equal(getTcpCommand('127.0.0.1:5000'), 'nc 127.0.0.1 5000')
+  assert.equal(getTcpCommand('[::1]:5000'), 'nc ::1 5000')
+  assert.equal(getTcpCommand(''), '')
+})
 
 test('removes the NodePort when the public HTTP route is enabled', () => {
   assert.equal(

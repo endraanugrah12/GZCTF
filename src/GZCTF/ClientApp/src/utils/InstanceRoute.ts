@@ -1,3 +1,8 @@
+export const getTcpCommand = (entry: string): string => {
+  const address = entry.replace(/^\[([^\]]+)\]:(\d+)$/, '$1 $2').replace(/:(\d+)$/, ' $1')
+  return entry ? `nc ${address}` : ''
+}
+
 export const getPublicHttpEntry = (
   instanceEntry: string,
   challengeBaseDomain: string | null | undefined,

@@ -62,11 +62,11 @@ public static class ChallengeYamlSerializer
             FlagTemplate = string.IsNullOrEmpty(ch.FlagTemplate) ? null : ch.FlagTemplate,
             Hints = ch.Hints is { Count: > 0 } ? new List<string>(ch.Hints) : null,
             Flags = flagTexts.Count > 0 ? new List<string>(flagTexts) : null,
-            // Defaults match GameChallenge entity init (0.25 / 5) —
+            // Defaults match GameChallenge entity init (0.20 / 5) —
             // omit when the row still carries the default so we don't
-            // emit noisy "field: 0.25" / "difficulty: 5" lines after
+            // emit noisy "field: 0.20" / "difficulty: 5" lines after
             // a fresh import.
-            MinScoreRate = ch.MinScoreRate == 0.25 ? null : ch.MinScoreRate,
+            MinScoreRate = ch.MinScoreRate == 0.20 ? null : ch.MinScoreRate,
             Difficulty = ch.Difficulty == 5 ? null : ch.Difficulty,
             SubmissionLimit = ch.SubmissionLimit == 0 ? null : ch.SubmissionLimit,
             DisableBloodBonus = ch.DisableBloodBonus ? true : null,

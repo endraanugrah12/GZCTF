@@ -115,7 +115,7 @@ const GameChallengeEdit: FC = () => {
 
   const [disabled, setDisabled] = useState(false)
 
-  const [minRate, setMinRate] = useState((challenge?.minScoreRate ?? 0.25) * 100)
+  const [minRate, setMinRate] = useState((challenge?.minScoreRate ?? 0.20) * 100)
   const [category, setCategory] = useState<string | null>(challenge?.category ?? ChallengeCategory.Misc)
   const [networkMode, setNetworkMode] = useState<string | null>(challenge?.networkMode ?? NetworkMode.Open)
   const [type, setType] = useState<string | null>(challenge?.type ?? ChallengeType.StaticAttachment)
@@ -152,7 +152,7 @@ const GameChallengeEdit: FC = () => {
     if (challenge) {
       const info = { ...challenge }
       const dl = challenge.deadlineUtc ? dayjs(challenge.deadlineUtc) : null
-      const mr = (challenge?.minScoreRate ?? 0.25) * 100
+      const mr = (challenge?.minScoreRate ?? 0.20) * 100
       setChallengeInfo(info)
       setCategory(challenge.category)
       setType(challenge.type)
@@ -793,8 +793,11 @@ const GameChallengeEdit: FC = () => {
                 disabled={disabled}
                 checked={challengeInfo.usePublicHttpRoute ?? false}
                 label={SwitchLabel(
-                  t('admin.content.games.challenges.public_http_route.label'),
-                  t('admin.content.games.challenges.public_http_route.description')
+                  t('admin.content.games.challenges.connection_https.label', 'Connection: HTTPS'),
+                  t(
+                    'admin.content.games.challenges.connection_https.description',
+                    'Off: expose a randomized host port and show an nc command. On: use the configured wildcard HTTPS route.'
+                  )
                 )}
                 onChange={(e) => setChallengeInfo({ ...challengeInfo, usePublicHttpRoute: e.target.checked })}
               />

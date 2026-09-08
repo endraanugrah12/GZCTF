@@ -152,7 +152,7 @@ public class ScoringSection
     /// Minimum score rate
     /// </summary>
     [Range(0.0, 1.0, ErrorMessage = "Minimum score rate must be between 0 and 1")]
-    public double MinRate { get; set; } = 0.25;
+    public double MinRate { get; set; } = 0.20;
 
     /// <summary>
     /// Difficulty coefficient

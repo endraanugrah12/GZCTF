@@ -2149,6 +2149,9 @@ namespace GZCTF.Migrations
 
             modelBuilder.Entity("GZCTF.Models.Data.UserInfo", b =>
                 {
+                    b.Property<bool>("HideFromScoreboard")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");

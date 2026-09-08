@@ -34,14 +34,14 @@ public class GameChallenge : Challenge
     /// Initial score
     /// </summary>
     [Required]
-    public int OriginalScore { get; set; } = 1000;
+    public int OriginalScore { get; set; } = 500;
 
     /// <summary>
     /// Minimum score rate
     /// </summary>
     [Required]
     [Range(0, 1)]
-    public double MinScoreRate { get; set; } = 0.25;
+    public double MinScoreRate { get; set; } = 0.20;
 
     /// <summary>
     /// Difficulty coefficient

@@ -7,6 +7,8 @@ namespace GZCTF.Models.Request.Admin;
 /// </summary>
 public class AdminUserInfoModel
 {
+    public bool? HideFromScoreboard { get; set; }
+
     /// <summary>
     /// Username
     /// </summary>

@@ -723,6 +723,7 @@ export interface ArrayResponseOfUserInfoModel {
 
 /** User information (Admin) */
 export interface UserInfoModel {
+  hideFromScoreboard?: boolean;
   /**
    * User ID
    * @format guid
@@ -871,6 +872,7 @@ export interface AdminTeamModel {
 
 /** User information modification (Admin) */
 export interface AdminUserInfoModel {
+  hideFromScoreboard?: boolean | null;
   /**
    * Username
    * @minLength 3

@@ -4,8 +4,9 @@
 // See licenses/LicenseRef-GZCTF-Restricted.txt
 import { useLocalStorage } from '@mantine/hooks'
 import dayjs from 'dayjs'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { SWRConfiguration } from 'swr'
+import { useAppearance } from '@Hooks/useAppearance'
 import api, { ClientConfig, ContainerPortMappingType } from '@Api'
 
 export const OnceSWRConfig: SWRConfiguration = {
@@ -22,6 +23,7 @@ const RepoMeta = {
 }
 
 export const useConfig = () => {
+  const appearance = useAppearance()
   const {
     data: config,
     error,
@@ -56,7 +58,19 @@ export const useConfig = () => {
     }
   }, [config])
 
-  return { config: config ?? clientConfig, error, mutate }
+  const base = config ?? clientConfig
+  const themed = useMemo(
+    () => ({
+      ...base,
+      title: appearance.title || base.title,
+      slogan: appearance.slogan || base.slogan,
+      logoUrl: appearance.logoUrl || base.logoUrl,
+      customTheme: appearance.primaryColor || base.customTheme,
+      footerInfo: appearance.footerMarkdown || base.footerInfo,
+    }),
+    [base, appearance]
+  )
+  return { config: themed, error, mutate }
 }
 
 export const useCaptchaConfig = () => {

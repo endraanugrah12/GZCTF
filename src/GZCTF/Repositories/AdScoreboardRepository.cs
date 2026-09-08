@@ -87,6 +87,7 @@ public class AdScoreboardRepository(
 
         var teams = await Context.Participations
             .Where(p => p.GameId == gameId && p.Status == ParticipationStatus.Accepted)
+            .Where(p => !p.Members.Any(m => m.User.HideFromScoreboard))
             .Include(p => p.Team)
             .Include(p => p.Division)
             .ToListAsync(token);
@@ -277,6 +278,7 @@ public class AdScoreboardRepository(
 
         var teams = await Context.Participations
             .Where(p => p.GameId == gameId && p.Status == ParticipationStatus.Accepted)
+            .Where(p => !p.Members.Any(m => m.User.HideFromScoreboard))
             .Include(p => p.Team)
             .Include(p => p.Division)
             .ToListAsync(token);
@@ -441,6 +443,7 @@ public class AdScoreboardRepository(
 
         var teams = await Context.Participations
             .Where(p => p.GameId == gameId && p.Status == ParticipationStatus.Accepted)
+            .Where(p => !p.Members.Any(m => m.User.HideFromScoreboard))
             .Include(p => p.Team)
             .Include(p => p.Division)
             .ToListAsync(token);
@@ -616,6 +619,7 @@ public class AdScoreboardRepository(
 
         var teams = await Context.Participations
             .Where(p => p.GameId == gameId && p.Status == ParticipationStatus.Accepted)
+            .Where(p => !p.Members.Any(m => m.User.HideFromScoreboard))
             .Include(p => p.Team)
             .Include(p => p.Division)
             .ToListAsync(token);
