@@ -14,6 +14,7 @@ public class ProfileUserInfoModel
     /// User role
     /// </summary>
     public Role Role { get; set; }
+    public bool HideFromScoreboard { get; set; }
 
     /// <summary>
     /// Username
@@ -62,6 +63,7 @@ public class ProfileUserInfoModel
             Avatar = user.AvatarUrl,
             StdNumber = user.StdNumber,
             Role = user.Role,
+            HideFromScoreboard = user.HideFromScoreboard,
             HasManagedGames = false // Placeholder, logic needs to be in Controller
         };
 

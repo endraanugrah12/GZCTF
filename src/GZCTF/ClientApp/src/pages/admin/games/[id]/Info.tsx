@@ -356,7 +356,9 @@ const GameInfoEdit: FC = () => {
           disabled={disabled}
           onChange={(e) => game && setGame({ ...game, discordWebhook: e.target.value })}
         />
-        <DiscordSettingsPanel key={numId} gameId={numId} />
+        <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+          <DiscordSettingsPanel key={numId} gameId={numId} />
+        </div>
         <DateTimePicker
           label={t('admin.content.games.info.start_time')}
           size="sm"

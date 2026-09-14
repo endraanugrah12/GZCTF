@@ -26,6 +26,17 @@ namespace GZCTF.Test.UnitTests.Services;
 
 public class DiscordSettingsTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ProfileReturnsPersistedScoreboardVisibility(bool hidden)
+    {
+        var profile = GZCTF.Models.Request.Account.ProfileUserInfoModel.FromUserInfo(
+            new UserInfo { HideFromScoreboard = hidden });
+        Assert.Equal(hidden, profile.HideFromScoreboard);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(profile, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        Assert.Equal(hidden, json.RootElement.GetProperty("hideFromScoreboard").GetBoolean());
+    }
     private static readonly DateTimeOffset Freeze = DateTimeOffset.Parse("2026-09-14T12:00:00Z");
     private static Game Game() => new() { Id = 1, Title = "Test game", StartTimeUtc = Freeze.AddHours(-2),
         EndTimeUtc = Freeze.AddHours(1), FreezeTimeUtc = Freeze };

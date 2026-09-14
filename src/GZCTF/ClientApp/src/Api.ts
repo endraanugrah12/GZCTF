@@ -386,6 +386,8 @@ export interface MailChangeModel {
 
 /** Basic account information */
 export interface ProfileUserInfoModel {
+  /** Whether this account's teams are hidden from scoreboards. */
+  hideFromScoreboard?: boolean;
   /**
    * User ID
    * @format guid

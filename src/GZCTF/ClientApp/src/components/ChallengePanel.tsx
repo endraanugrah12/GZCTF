@@ -28,6 +28,7 @@ import { Empty } from '@Components/Empty'
 import { GameChallengeModal } from '@Components/GameChallengeModal'
 import { WriteupSubmitModal } from '@Components/WriteupSubmitModal'
 import { useChallengeCategoryLabelMap, SubmissionTypeIconMap } from '@Utils/Shared'
+import { getChallengeLoadState } from '@Utils/ChallengeLoadState'
 import { useGame, useGameTeamInfo } from '@Hooks/useGame'
 import { ChallengeInfo, ChallengeCategory, ChallengeType, SubmissionType } from '@Api'
 import classes from '@Styles/ChallengePanel.module.css'
@@ -46,8 +47,9 @@ export const ChallengePanel: FC = () => {
   const { id } = useParams()
   const numId = parseInt(id ?? '-1')
 
-  const { teamInfo } = useGameTeamInfo(numId)
+  const { teamInfo, error, mutate } = useGameTeamInfo(numId)
   const challenges = teamInfo?.challenges
+  const loadState = getChallengeLoadState(teamInfo, error)
 
   const { game } = useGame(numId)
 
@@ -225,8 +227,16 @@ export const ChallengePanel: FC = () => {
     }
   }, [hash, challenge, allChallenges])
 
-  // skeleton for loading
-  if (!challenges) {
+  if (loadState === 'error') {
+    return (
+      <Stack p="md">
+        <Text c="red">Could not load challenges. Check that your team is accepted and the game is accessible.</Text>
+        <Button onClick={() => void mutate()}>Retry</Button>
+      </Stack>
+    )
+  }
+  // Skeleton only while challenge data is absent, not when a team is unranked.
+  if (loadState === 'loading' || !challenges) {
     return (
       <>
         <Stack miw="10rem" maw="10rem">
@@ -417,15 +427,8 @@ export const ChallengePanel: FC = () => {
         scrollbarSize={4}
         classNames={{ root: classes.scrollArea }}
       >
-        {/* if rank is 0, and have no division, means scoreboard not ready yet */}
-        {!teamInfo.rank?.divisionId && !teamInfo?.rank?.rank ? (
-          <Center h="calc(100vh - 10rem)">
-            <Stack gap={0}>
-              <Title order={2}>{t('game.content.scoreboard_not_ready.title')}</Title>
-              <Text>{t('game.content.scoreboard_not_ready.comment')}</Text>
-            </Stack>
-          </Center>
-        ) : currentChallenges && currentChallenges.length ? (
+        {/* Hidden/unranked teams still receive challenges; rank is not a loading signal. */}
+        {currentChallenges && currentChallenges.length ? (
           <Stack gap="sm" p="xs" pt={0}>
             {groupedSections.map((section, idx) => {
               const sectionHeader = section.kind ? (

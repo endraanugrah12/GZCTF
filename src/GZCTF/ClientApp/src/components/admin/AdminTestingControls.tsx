@@ -21,7 +21,7 @@ export function AdminTestingControls({ gameId, accepted }: { gameId: number; acc
     setFailed(false)
     try {
       await api.instance.put(url!, { hideFromScoreboard: hidden })
-      await mutate()
+      await mutate({ hideFromScoreboard: hidden }, { revalidate: false })
     } catch {
       setFailed(true)
     } finally {
