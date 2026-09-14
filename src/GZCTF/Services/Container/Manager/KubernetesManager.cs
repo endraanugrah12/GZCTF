@@ -57,6 +57,8 @@ public class KubernetesManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(ContainerConfig config,
         CancellationToken token = default)
     {
+        var publicAddress = !_meta.ExposePort || config.UsePublicHttpRoute
+            ? null : await PublicInstanceAddress.ResolveAsync(_meta.PublicEntry, token);
         var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(imageName))
@@ -331,7 +333,7 @@ public class KubernetesManager : IContainerManager
 
         container.PublicIP = config.UsePublicHttpRoute && !string.IsNullOrEmpty(_routeBaseDomain)
             ? ChallengeRoute.GetHost(config, _routeBaseDomain)
-            : _meta.PublicEntry;
+            : publicAddress;
         container.PublicPort = service.Spec.Ports[0].NodePort;
 
         return container;

@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
 import { WithGameEditTab } from '@Components/admin/WithGameEditTab'
+import { DiscordSettingsPanel } from '@Components/admin/DiscordSettingsPanel'
 import { downloadBlob } from '@Utils/ApiHelper'
 import { getInputNumber, randomInviteCode, showErrorMsg, tryGetErrorMsg } from '@Utils/Shared'
 import { IMAGE_MIME_TYPES } from '@Utils/Shared'
@@ -355,6 +356,7 @@ const GameInfoEdit: FC = () => {
           disabled={disabled}
           onChange={(e) => game && setGame({ ...game, discordWebhook: e.target.value })}
         />
+        <DiscordSettingsPanel key={numId} gameId={numId} />
         <DateTimePicker
           label={t('admin.content.games.info.start_time')}
           size="sm"

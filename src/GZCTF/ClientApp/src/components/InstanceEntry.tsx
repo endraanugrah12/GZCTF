@@ -21,7 +21,7 @@ import { getProxyUrl as getProxyEntry } from '@Utils/Shared'
 import { useConfig } from '@Hooks/useConfig'
 import { useTicker } from '@Hooks/useTicker'
 import api, { ClientFlagContext, ContainerPortMappingType } from '@Api'
-import { getPublicHttpEntry, getTcpCommand } from '@Utils/InstanceRoute'
+import { getPublicHttpEntry, getInstanceDisplayEntry } from '@Utils/InstanceRoute'
 import classes from '@Styles/InstanceEntry.module.css'
 import misc from '@Styles/Misc.module.css'
 
@@ -209,9 +209,8 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
   const publicHttpEntry = !useLocal
     ? getPublicHttpEntry(entry, config.challengeBaseDomain, props.usePublicHttpRoute ?? false)
     : null
-  // Directly published instances are TCP by default. Displaying the complete
-  // command removes ambiguity for Pwn users and makes the copy action useful.
-  const displayEntry = publicHttpEntry ?? (entryIsWss ? entry : getTcpCommand(entry))
+  // Direct TCP instances display/copy host:port. Preserve HTTP and WSS URLs.
+  const displayEntry = getInstanceDisplayEntry(entry, publicHttpEntry)
   const webEntry = publicHttpEntry
     ?? `http://${useLocal && wsrxOptions.allowLan ? entry.replace('0.0.0.0', '127.0.0.1') : entry}`
 

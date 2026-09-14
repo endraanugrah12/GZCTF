@@ -32,6 +32,7 @@ import { HintList } from '@Components/HintList'
 import { InstanceEntry } from '@Components/InstanceEntry'
 import { ChallengePreviewModal } from '@Components/admin/ChallengePreviewModal'
 import { ContainerExecModal } from '@Components/admin/ContainerExecModal'
+import { ChallengeRuntimeLogs } from '@Components/admin/ChallengeRuntimeLogs'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
 import { WithChallengeEdit } from '@Components/admin/WithChallengeEdit'
 import { ScoreFunc } from '@Components/charts/ScoreFunc'
@@ -650,6 +651,8 @@ const GameChallengeEdit: FC = () => {
             onChange={(e) => setChallengeInfo({ ...challengeInfo, fileName: e.target.value })}
           />
         )}
+        {(type === ChallengeType.StaticContainer || type === ChallengeType.DynamicContainer || isAdEngine) &&
+          <ChallengeRuntimeLogs key={`${numId}-${numCId}`} gameId={numId} challengeId={numCId} />}
         {(type === ChallengeType.StaticContainer
           || type === ChallengeType.DynamicContainer
           || isAdEngine) && (

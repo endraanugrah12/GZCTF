@@ -457,6 +457,16 @@ public class GameInstanceRepository(
                 return new(SubmissionType.Unaccepted, updateSub.Status);
             }
 
+            // Pre-start tests are recorded for evidence/audit but must not claim solves or blood slots.
+            var gameStart = await Context.Games.Where(g => g.Id == updateSub.GameId)
+                .Select(g => g.StartTimeUtc).SingleAsync(token);
+            if (updateSub.SubmitTimeUtc < gameStart)
+            {
+                await SaveAsync(token);
+                await transaction.CommitAsync(token);
+                return new(SubmissionType.Normal, updateSub.Status);
+            }
+
             // Acquire a PostgresSQL advisory lock to prevent race conditions:
             // This lock ensures that only one concurrent submission for the same participation/challenge pair
             // can proceed past this point, preventing duplicate FirstSolve entries if multiple submissions
@@ -501,7 +511,9 @@ public class GameInstanceRepository(
             // GenScoreboard: `BloodEligible && ScoreEligible`): a team that cannot receive points
             // must not consume a blood slot, otherwise the submit-time announced tier diverges
             // from the tier the scoreboard ultimately shows.
-            var hasBloodPermission = withinGameWindow && withinDeadline && !challenge.DisableBloodBonus &&
+            var hiddenTeam = await Context.Participations.Where(p => p.Id == participation.Id)
+                .AnyAsync(p => p.Members.Any(m => m.User.HideFromScoreboard), token);
+            var hasBloodPermission = !hiddenTeam && withinGameWindow && withinDeadline && !challenge.DisableBloodBonus &&
                                      HasPermission(participation.Division, GamePermission.GetBlood,
                                          submission.ChallengeId) &&
                                      HasPermission(participation.Division, GamePermission.GetScore,
@@ -575,6 +587,7 @@ public class GameInstanceRepository(
                 on participation.DivisionId equals division.Id into divisionJoin
             from div in divisionJoin.DefaultIfEmpty()
             where participation.Status == ParticipationStatus.Accepted
+                  && !participation.Members.Any(m => m.User.HideFromScoreboard)
                   // Require BOTH GetBlood and GetScore, matching the scoreboard's blood-slot rule
                   // (a non-scoring team doesn't consume a blood slot) so this prior-solve count
                   // agrees with the tier the scoreboard assigns.

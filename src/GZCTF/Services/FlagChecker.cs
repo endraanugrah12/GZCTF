@@ -100,6 +100,13 @@ public class FlagChecker(
                 {
                     var (type, ans) = await instanceRepository.VerifyAnswer(item, token);
 
+                    if (item.Game is not null && item.SubmitTimeUtc < item.Game.StartTimeUtc)
+                    {
+                        item.Status = ans;
+                        await submissionRepository.SendSubmission(item);
+                        continue;
+                    }
+
                     switch (ans)
                     {
                         case AnswerResult.NotFound:

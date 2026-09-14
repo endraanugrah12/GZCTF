@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getPublicHttpEntry, getTcpCommand } from './InstanceRoute'
+import { getPublicHttpEntry, getInstanceDisplayEntry } from './InstanceRoute'
 
-test('formats copyable nc commands with separate host and port arguments', () => {
-  assert.equal(getTcpCommand('pwn.example.com:32784'), 'nc pwn.example.com 32784')
-  assert.equal(getTcpCommand('127.0.0.1:5000'), 'nc 127.0.0.1 5000')
-  assert.equal(getTcpCommand('[::1]:5000'), 'nc ::1 5000')
-  assert.equal(getTcpCommand(''), '')
+test('displays and copies TCP endpoints as host:port without an nc command', () => {
+  assert.equal(getInstanceDisplayEntry('pwn.example.com:32784'), 'pwn.example.com:32784')
+  assert.equal(getInstanceDisplayEntry('127.0.0.1:5000'), '127.0.0.1:5000')
+  assert.equal(getInstanceDisplayEntry('[::1]:5000'), '[::1]:5000')
+  assert.equal(getInstanceDisplayEntry(''), '')
+})
+
+test('preserves configured HTTP and WebSocket proxy endpoints', () => {
+  assert.equal(getInstanceDisplayEntry('127.0.0.1:5000', 'https://web.example.com'), 'https://web.example.com')
+  assert.equal(getInstanceDisplayEntry('wss://ctf.example.com/proxy/token'), 'wss://ctf.example.com/proxy/token')
 })
 
 test('removes the NodePort when the public HTTP route is enabled', () => {

@@ -59,7 +59,7 @@ public class DockerProvider : IContainerProvider<DockerClient, DockerMetadata>
                 Enum.GetValues<NetworkMode>()
                     .ToDictionary(n => n,
                         m => $"{networkPrefix}-{m.ToString().ToLowerInvariant()}"),
-            PublicEntry = options.Value.PublicEntry
+            PublicEntry = string.IsNullOrWhiteSpace(options.Value.PublicIP) ? options.Value.PublicEntry : options.Value.PublicIP
         };
         
         var builder = new DockerClientBuilder();

@@ -30,7 +30,8 @@ public class SubmissionRepository(
 
     public Task<int> CountSubmissions(int participationId, int challengeId, CancellationToken token = default) =>
         Context.Submissions.CountAsync(s =>
-            s.ParticipationId == participationId && s.ChallengeId == challengeId, token);
+            s.ParticipationId == participationId && s.ChallengeId == challengeId &&
+            s.SubmitTimeUtc >= s.Game!.StartTimeUtc, token);
 
 
     public Task<Submission[]> GetUncheckedFlags(CancellationToken token = default) =>

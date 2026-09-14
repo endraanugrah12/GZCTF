@@ -135,6 +135,8 @@ public class DockerManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(GZCTF.Models.Internal.ContainerConfig config,
         CancellationToken token = default)
     {
+        var publicAddress = _meta.PortMappingType == ContainerPortMappingType.PlatformProxy || config.UsePublicHttpRoute
+            ? null : await PublicInstanceAddress.ResolveAsync(_meta.PublicEntry, token);
         var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(imageName))
@@ -345,12 +347,11 @@ public class DockerManager : IContainerManager
                 LogLevel.Warning);
 
         // A wildcard route is opt-in per challenge.  The normal path deliberately
-        // keeps Docker's randomized published port and the configured public host,
-        // so TCP/Pwn challenges can be reached as `nc host port`.
+        // keeps Docker's randomized published port and the actual public IP.
         if (config.UsePublicHttpRoute && !string.IsNullOrEmpty(_routeBaseDomain))
             container.PublicIP = ChallengeRoute.GetHost(config, _routeBaseDomain);
-        else if (!string.IsNullOrEmpty(_meta.PublicEntry))
-            container.PublicIP = _meta.PublicEntry;
+        else if (publicAddress is not null)
+            container.PublicIP = publicAddress;
 
         return container;
     }

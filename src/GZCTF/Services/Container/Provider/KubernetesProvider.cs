@@ -49,7 +49,7 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
         {
             Config = options.Value.KubernetesConfig ?? new(),
             PortMappingType = options.Value.PortMappingType,
-            PublicEntry = options.Value.PublicEntry
+            PublicEntry = string.IsNullOrWhiteSpace(options.Value.PublicIP) ? options.Value.PublicEntry : options.Value.PublicIP
         };
 
         // The A&D flag-writer sidecar pulls rotating flags from this host:port

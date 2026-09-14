@@ -3,6 +3,10 @@ using System.Net.Sockets;
 using System.Text.Json;
 using GZCTF.Models.Data;
 using Microsoft.Extensions.Logging;
+using GZCTF.Models.Request.Admin;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace GZCTF.Services.Webhook;
 
@@ -12,7 +16,8 @@ public class Models
     {
         public string? Content { get; set; }
         public string? Username { get; set; }
-        public string? AvatarUrl { get; set; }
+        [JsonPropertyName("avatar_url")] public string? AvatarUrl { get; set; }
+        [JsonPropertyName("allowed_mentions")] public object AllowedMentions { get; set; } = new { parse = Array.Empty<string>() };
         public List<DiscordEmbed>? Embeds { get; set; }
     }
 
@@ -39,7 +44,7 @@ public class Models
     }
 }
 
-public class SendWebhookService(ILogger<SendWebhookService> logger) : ISendWebhookService
+public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScopeFactory scopeFactory) : ISendWebhookService
 {
     private const int ContentLimit = 2000;
     private const int EmbedTitleLimit = 256;
@@ -148,7 +153,12 @@ public class SendWebhookService(ILogger<SendWebhookService> logger) : ISendWebho
     {
         try
         {
-            var message = CreateMessage(gameEvent);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var game = await db.Games.AsNoTracking().SingleOrDefaultAsync(g => g.Id == gameEvent.GameId);
+            if (game is null || DateTimeOffset.UtcNow < game.StartTimeUtc || gameEvent.PublishTimeUtc < game.StartTimeUtc) return;
+            var options = await DiscordSettings.Read(db, game.Id);
+            var message = CreateEventMessage(gameEvent, game, options, DateTimeOffset.UtcNow);
             if (message == null) return;
 
             await SendAsync(webhookUrl, message, "event");
@@ -163,7 +173,15 @@ public class SendWebhookService(ILogger<SendWebhookService> logger) : ISendWebho
     {
         try
         {
-            var message = CreateNoticeMessage(notice);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var game = await db.Games.AsNoTracking().SingleOrDefaultAsync(g => g.Id == notice.GameId);
+            if (game is null) return;
+            // Deliberate announcements may be sent before an event, unlike automatic test activity.
+            if (notice.Type != NoticeType.Normal &&
+                (DateTimeOffset.UtcNow < game.StartTimeUtc || notice.PublishTimeUtc < game.StartTimeUtc)) return;
+            var options = await DiscordSettings.Read(db, game.Id);
+            var message = CreateNoticeMessage(notice, game, options, DateTimeOffset.UtcNow);
             if (message == null) return;
 
             await SendAsync(webhookUrl, message, "notice");
@@ -281,109 +299,84 @@ public class SendWebhookService(ILogger<SendWebhookService> logger) : ISendWebho
         }
     }
 
-    private Models.DiscordWebhookMessage? CreateMessage(GameEvent gameEvent)
+    internal static bool IsFrozen(Game game, DateTimeOffset published, DateTimeOffset now)
+        => game.FreezeTimeUtc is { } freeze && (now >= freeze || published >= freeze);
+
+    internal static Models.DiscordWebhookMessage? CreateEventMessage(GameEvent gameEvent, Game game,
+        DiscordSettings options, DateTimeOffset now)
     {
-        // Only handle specific events to avoid noise
-        if (gameEvent.Type != EventType.FlagSubmit && 
-            gameEvent.Type != EventType.CheatDetected)
+        if (!options.Enabled || !options.CheatAlerts || string.IsNullOrEmpty(options.CheatMessage) ||
+            gameEvent.Type != EventType.CheatDetected) return null;
+        var frozen = IsFrozen(game, gameEvent.PublishTimeUtc, now);
+        var team = frozen ? options.AnonymousTeam : gameEvent.Team?.Name ?? "Unknown team";
+        var details = frozen ? "Details withheld during scoreboard freeze." : string.Join(", ", gameEvent.Values ?? []);
+        var message = new Models.DiscordWebhookMessage { Embeds = [new Models.DiscordEmbed
         {
-            return null; 
-        }
-
-        var embed = new Models.DiscordEmbed
-        {
+            Title = "Cheat Detected! 🚨", Color = 0xFF0000,
             Timestamp = gameEvent.PublishTimeUtc.ToString("o"),
-        };
-
-        switch (gameEvent.Type)
-        {
-            case EventType.FlagSubmit:
-                // User requested to ONLY notify for First/Second/Third Blood.
-                // Bloods are handled via GameNotice (CreateNoticeMessage), so we disable
-                // the generic "Challenge Solved!" notification here entirely.
-                return null;
-            case EventType.CheatDetected:
-                embed.Title = "Cheat Detected! 🚨";
-                embed.Color = 0xFF0000; // Red
-                embed.Description = $"Cheat detected for team **{EscapeMd(gameEvent.Team?.Name)}**.\nDetails: {EscapeMd(string.Join(", ", gameEvent.Values ?? []))}";
-                embed.Footer = new Models.DiscordEmbedFooter { Text = gameEvent.Game?.Title ?? "Unknown Game" };
-                break;
-            default:
-                 return null;
-        }
-
-        return new Models.DiscordWebhookMessage
-        {
-            Embeds = new List<Models.DiscordEmbed> { embed }
-        };
+            Description = Render(options.CheatMessage, team, "", game.Title, "", details)
+        }] };
+        ApplyBranding(message, options, game.Title);
+        SanitizeMessage(message);
+        return message;
     }
 
-    private Models.DiscordWebhookMessage? CreateNoticeMessage(GameNotice notice)
+    // Substitute once: tokens embedded in player-controlled values are never expanded.
+    internal static string Render(string template, string team, string challenge, string game, string message, string details = "")
+        => Regex.Replace(template, @"\{(team|challenge|game|message|details)\}", match => EscapeMd(match.Groups[1].Value switch
+        {
+            "team" => team, "challenge" => challenge, "game" => game,
+            "message" => message, "details" => details, _ => ""
+        }));
+
+    private static void ApplyBranding(Models.DiscordWebhookMessage message, DiscordSettings options, string game)
     {
+        message.Username = options.Username;
+        message.AvatarUrl = string.IsNullOrWhiteSpace(options.AvatarUrl) ? null : options.AvatarUrl;
+        foreach (var embed in message.Embeds ?? [])
+            embed.Footer = new Models.DiscordEmbedFooter { Text = Render(options.Footer, "", "", game, "") };
+    }
+
+    internal static Models.DiscordWebhookMessage? CreateNoticeMessage(GameNotice notice, Game game, DiscordSettings options, DateTimeOffset now)
+    {
+        if (!options.Enabled) return null;
+        var blood = notice.Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood;
+        if (blood && !options.Bloods || notice.Type == NoticeType.Normal && !options.Announcements ||
+            notice.Type == NoticeType.NewHint && !options.Hints || notice.Type == NoticeType.NewChallenge && !options.Challenges)
+            return null;
+        var team = blood ? notice.Values?.ElementAtOrDefault(0) ?? "Unknown team" : "";
+        if (blood && IsFrozen(game, notice.PublishTimeUtc, now)) team = options.AnonymousTeam;
+        var challenge = notice.Values?.ElementAtOrDefault(blood ? 1 : 0) ?? "";
+        var title = notice.Type switch
+        {
+            NoticeType.FirstBlood => options.FirstBloodTitle,
+            NoticeType.SecondBlood => options.SecondBloodTitle,
+            NoticeType.ThirdBlood => options.ThirdBloodTitle,
+            _ => notice.Type.ToString()
+        };
+        var template = notice.Type switch
+        {
+            NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood => options.BloodMessage,
+            NoticeType.Normal => options.AnnouncementMessage,
+            NoticeType.NewHint => options.HintMessage,
+            NoticeType.NewChallenge => options.ChallengeMessage,
+            _ => ""
+        };
+        if (string.IsNullOrEmpty(template)) return null;
         var embed = new Models.DiscordEmbed
         {
-            Timestamp = notice.PublishTimeUtc.ToString("o")
-        };
-
-        // Custom formatting for Blood notices
-        if (notice.Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood)
-        {
-            switch (notice.Type)
+            Title = Render(title, team, challenge, game.Title, ""),
+            Description = Render(template, team, challenge, game.Title, blood ? "" : notice.Values?.FirstOrDefault() ?? ""),
+            Timestamp = notice.PublishTimeUtc.ToString("o"),
+            Color = notice.Type switch
             {
-                case NoticeType.FirstBlood:
-                    embed.Title = "First Blood! 🥇";
-                    embed.Color = 0xFFD700; // Gold
-                    break;
-                case NoticeType.SecondBlood:
-                    embed.Title = "Second Blood! 🥈";
-                    embed.Color = 0xC0C0C0; // Silver
-                    break;
-                case NoticeType.ThirdBlood:
-                    embed.Title = "Third Blood! 🥉";
-                    embed.Color = 0xCD7F32; // Bronze
-                    break;
+                NoticeType.FirstBlood => 0xFFD700, NoticeType.SecondBlood => 0xC0C0C0,
+                NoticeType.ThirdBlood => 0xCD7F32, _ => 0x3498DB
             }
-            
-            // Values: [TeamName, ChallengeName] — both user/author-controlled, so escape
-            // Discord markdown before interpolating into the embed.
-            var teamName = EscapeMd(notice.Values?.ElementAtOrDefault(0) ?? "Unknown Team");
-            var challengeName = EscapeMd(notice.Values?.ElementAtOrDefault(1) ?? "Unknown Challenge");
-            
-            string prefix = notice.Type switch
-            {
-                NoticeType.FirstBlood => "First Blood! ",
-                NoticeType.SecondBlood => "Second Blood! ",
-                NoticeType.ThirdBlood => "Third Blood! ",
-                _ => ""
-            };
-
-            embed.Description = $"{prefix}**{teamName}** solved **{challengeName}**";
-            embed.Footer = new Models.DiscordEmbedFooter { Text = notice.Game?.Title ?? "Unknown Game" };
-        }
-        else
-        {
-             // Standard notices
-             embed.Title = $"{notice.Type} 🎯";
-             embed.Color = notice.Type switch
-             {
-                 NoticeType.NewHint => 0x3498DB,      // Blue
-                 NoticeType.NewChallenge => 0x2ECC71, // Green
-                 _ => 0x95A5A6                        // Gray for others
-             };
-             
-             embed.Description = notice.Type switch
-             {
-                 NoticeType.NewChallenge => $"New challenge released: **{EscapeMd(notice.Values?.FirstOrDefault())}**",
-                 NoticeType.NewHint => $"New hint released for challenge **{EscapeMd(notice.Values?.FirstOrDefault())}**",
-                 NoticeType.Normal => notice.Values?.FirstOrDefault() ?? "New announcement",
-                 _ => notice.Values?.Count > 0 ? string.Join(", ", notice.Values) : notice.Type.ToString()
-             };
-             embed.Footer = new Models.DiscordEmbedFooter { Text = notice.Game?.Title ?? "Unknown Game" };
-        }
-
-        return new Models.DiscordWebhookMessage
-        {
-            Embeds = new List<Models.DiscordEmbed> { embed }
         };
+        var message = new Models.DiscordWebhookMessage { Embeds = [embed] };
+        ApplyBranding(message, options, game.Title);
+        SanitizeMessage(message);
+        return message;
     }
 }

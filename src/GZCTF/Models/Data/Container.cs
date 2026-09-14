@@ -89,7 +89,9 @@ public class Container
     /// Container instance access method
     /// </summary>
     [NotMapped]
-    public string Entry => IsProxy ? Id.ToString() : $"{PublicIP ?? IP}:{PublicPort ?? Port}";
+    public string Entry => IsProxy ? Id.ToString() : $"{FormatHost(PublicIP ?? IP)}:{PublicPort ?? Port}";
+
+    internal static string FormatHost(string host) => host.Contains(':') && !host.StartsWith('[') ? $"[{host}]" : host;
 
     /// <summary>
     /// Whether traffic capture is enabled

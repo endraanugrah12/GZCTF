@@ -665,6 +665,8 @@ public class ContainerProvider
     public ContainerPortMappingType PortMappingType { get; set; } = ContainerPortMappingType.Default;
     public bool EnableTrafficCapture { get; set; }
     public string PublicEntry { get; set; } = string.Empty;
+    /// <summary>Actual public challenge-host IP; overrides PublicEntry for direct connections.</summary>
+    public string PublicIP { get; set; } = string.Empty;
     public KubernetesConfig? KubernetesConfig { get; set; }
     public DockerConfig? DockerConfig { get; set; }
 }

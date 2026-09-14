@@ -1,7 +1,6 @@
-export const getTcpCommand = (entry: string): string => {
-  const address = entry.replace(/^\[([^\]]+)\]:(\d+)$/, '$1 $2').replace(/:(\d+)$/, ' $1')
-  return entry ? `nc ${address}` : ''
-}
+// Display and clipboard share the same endpoint, without adding a shell command.
+export const getInstanceDisplayEntry = (entry: string, publicHttpEntry: string | null = null): string =>
+  publicHttpEntry ?? entry
 
 export const getPublicHttpEntry = (
   instanceEntry: string,

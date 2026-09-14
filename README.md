@@ -19,6 +19,8 @@
 
 GZ::CTF is an open source CTF platform based on ASP.NET Core.
 
+Administrator guide: [Discord message configuration, pre-start testing and scoreboard visibility](docs/admin-discord-testing.md).
+
 > [!NOTE]
 >
 > **This is a fork of GZ::CTF that adds an Attack & Defense and King of the Hill engine** on top of the upstream jeopardy platform. A single game can freely mix jeopardy, A&D, and KotH challenges.

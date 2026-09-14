@@ -23,13 +23,13 @@ public class GameNoticeRepository(
         await cacheHelper.RemoveAsync(CacheKey.GameNotice(notice.GameId), token);
 
         if (broadcast)
-        {
             await hub.Clients.Group($"Game_{notice.GameId}").ReceivedGameNotice(notice);
 
-            var game = await Context.Games.FindAsync([notice.GameId], token);
-            if (game?.DiscordWebhook is { Length: > 0 } webhookUrl)
-                _ = webhookService.SendNoticeAsync(notice, webhookUrl);
-        }
+        // Freeze suppresses the public feed, but Discord can send an anonymized blood notice.
+        var game = await Context.Games.FindAsync([notice.GameId], token);
+        var blood = notice.Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood;
+        if ((broadcast || blood) && game?.DiscordWebhook is { Length: > 0 } webhookUrl)
+            _ = webhookService.SendNoticeAsync(notice, webhookUrl);
 
         return notice;
     }

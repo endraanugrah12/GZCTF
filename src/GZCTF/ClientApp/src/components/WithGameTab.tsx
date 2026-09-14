@@ -51,7 +51,7 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const { role } = useUserRole()
+  const { role, error: roleError } = useUserRole()
   const { game, status } = useGame(numId)
   const { t } = useTranslation()
 
@@ -150,9 +150,10 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
   })
 
   useEffect(() => {
+    if (role === undefined && !roleError) return
     if (game) {
       const now = dayjs()
-      if (now < dayjs(game.start)) {
+      if (now < dayjs(game.start) && role !== Role.Admin) {
         navigate(`/games/${numId}`)
         showNotification({
           id: 'no-access',
@@ -204,7 +205,7 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
         })
       }
     }
-  }, [game, status, role, location])
+  }, [game, status, role, roleError, location])
 
   return (
     <Stack pos="relative" mt="md">

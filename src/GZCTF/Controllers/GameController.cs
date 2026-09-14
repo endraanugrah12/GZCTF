@@ -86,6 +86,10 @@ public class GameController(
         [FromQuery][Range(0, 50)] int limit,
         CancellationToken token)
     {
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.Append("Vary", "Cookie");
+        if (await ContextHelper.HasAdmin(HttpContext))
+            return Ok(await AdminGameList(limit > 0 ? limit : 50, 0, token));
         (var games, var lastModified) = await gameRepository.GetRecentGames(token);
         var eTag = $"\"{lastModified.ToUnixTimeSeconds():X}-{limit}\"";
         if (ContextHelper.IsNotModified(Request, Response, eTag, lastModified))
@@ -107,11 +111,21 @@ public class GameController(
     /// <response code="400">Game not found</response>
     [HttpGet]
     [EnableRateLimiting(nameof(RateLimiter.LimitPolicy.Query))]
-    [ResponseCache(VaryByQueryKeys = ["count", "skip"], Duration = 60)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(ArrayResponse<BasicGameInfoModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Games([FromQuery][Range(0, 50)] int count = 10,
         [FromQuery] int skip = 0, CancellationToken token = default)
-        => Ok(await gameRepository.GetGameInfo(count, skip, token));
+    {
+        Response.Headers.Append("Vary", "Cookie");
+        if (await ContextHelper.HasAdmin(HttpContext))
+            return Ok(new ArrayResponse<BasicGameInfoModel>(await AdminGameList(count, Math.Max(0, skip), token),
+                await dbContext.Games.CountAsync(token)));
+        return Ok(await gameRepository.GetGameInfo(count, skip, token));
+    }
+
+    private Task<BasicGameInfoModel[]> AdminGameList(int count, int skip, CancellationToken token) =>
+        dbContext.Games.AsNoTracking().OrderByDescending(g => g.StartTimeUtc).ThenByDescending(g => g.Id)
+            .Skip(skip).Take(count).Select(g => BasicGameInfoModel.FromGame(g)).ToArrayAsync(token);
 
     /// <summary>
     /// Get detailed game information
@@ -392,7 +406,7 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         var now = DateTimeOffset.UtcNow;
@@ -698,7 +712,7 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         (var data, var lastModified) = await noticeRepository.GetLatestNotices(game.Id, token);
@@ -748,7 +762,7 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         return Ok(await eventRepository.GetEvents(game.Id, hideContainer, count, skip, search, token));
@@ -782,7 +796,7 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         return Ok(await submissionRepository.GetSubmissions(game, type, count, skip, search, token));
@@ -810,7 +824,7 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         return Ok((await cheatInfoRepository.GetCheatInfoByGameId(game.Id, token))
@@ -1260,7 +1274,7 @@ public class GameController(
         if (game is null)
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)]));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         try
@@ -1308,7 +1322,7 @@ public class GameController(
         if (game is null)
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)]));
 
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         var submissions = await submissionRepository.GetSubmissions(game, count: 0, token: token);
@@ -2330,7 +2344,7 @@ public class GameController(
             return res.WithResult(
                 BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ParticipationNotAccepted)])));
 
-        if (DateTimeOffset.UtcNow < res.Game.StartTimeUtc)
+        if (DateTimeOffset.UtcNow < res.Game.StartTimeUtc && !await ContextHelper.HasAdmin(HttpContext))
             return res.WithResult(
                 BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted),
                     ErrorCodes.GameNotStarted])));
