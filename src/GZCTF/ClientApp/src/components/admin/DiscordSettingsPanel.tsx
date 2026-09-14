@@ -5,6 +5,7 @@ import {
   Group,
   Loader,
   Paper,
+  PasswordInput,
   Select,
   SimpleGrid,
   Stack,
@@ -20,6 +21,13 @@ import useSWR from 'swr'
 import api from '@Api'
 
 type Settings = {
+  firstBloodWebhook: string
+  secondBloodWebhook: string
+  thirdBloodWebhook: string
+  announcementWebhook: string
+  hintWebhook: string
+  challengeWebhook: string
+  cheatWebhook: string
   enabled: boolean
   bloods: boolean
   announcements: boolean
@@ -53,6 +61,15 @@ const textFields: [keyof Settings, string, number][] = [
   ['cheatMessage', 'Cheat alert message', 3000],
   ['footer', 'Embed footer', 500],
 ]
+const webhookFields: [keyof Settings, string][] = [
+  ['firstBloodWebhook', 'First blood'],
+  ['secondBloodWebhook', 'Second blood'],
+  ['thirdBloodWebhook', 'Third blood'],
+  ['challengeWebhook', 'New challenges'],
+  ['announcementWebhook', 'Announcements'],
+  ['hintWebhook', 'New hints'],
+  ['cheatWebhook', 'Cheat alerts'],
+]
 
 export function DiscordSettingsPanel({ gameId }: { gameId: number }) {
   const url = `/api/edit/Games/${gameId}/Discord`
@@ -77,7 +94,7 @@ export function DiscordSettingsPanel({ gameId }: { gameId: number }) {
       setDraft(null)
       setStatus('Discord settings saved')
     } catch {
-      setStatus('Save failed. Check field lengths and use an HTTPS avatar URL.')
+      setStatus('Save failed. Check field lengths and use HTTPS URLs for avatars and webhooks.')
     } finally {
       setBusy(false)
     }
@@ -129,6 +146,7 @@ export function DiscordSettingsPanel({ gameId }: { gameId: number }) {
         <Tabs defaultValue="delivery">
           <Tabs.List>
             <Tabs.Tab value="delivery">Delivery &amp; identity</Tabs.Tab>
+            <Tabs.Tab value="webhooks">Webhook destinations</Tabs.Tab>
             <Tabs.Tab value="messages">Message editor</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="delivery" pt="md">
@@ -176,6 +194,32 @@ export function DiscordSettingsPanel({ gameId }: { gameId: number }) {
                   {field('anonymousTeam')}
                 </Stack>
               </Paper>
+            </Stack>
+          </Tabs.Panel>
+          <Tabs.Panel value="webhooks" pt="md">
+            <Stack gap="md">
+              <Text size="sm" c="dimmed">
+                Send each notification type to its own Discord webhook or channel. Leave a field empty to use the game's
+                default webhook above. If both are empty, that notification is not sent.
+              </Text>
+              <SimpleGrid cols={{ base: 1, md: 2 }}>
+                {webhookFields.map(([key, label]) => (
+                  <PasswordInput
+                    key={key}
+                    label={label}
+                    placeholder="Use default game webhook"
+                    value={String(settings[key] ?? '')}
+                    disabled={busy}
+                    maxLength={2048}
+                    autoComplete="off"
+                    onChange={(e) => edit(key, e.currentTarget.value.trim())}
+                  />
+                ))}
+              </SimpleGrid>
+              <Text size="xs" c="dimmed">
+                Each event goes to one destination. You can reuse a URL to group notifications in the same channel.
+                Delivery switches and scoreboard freeze privacy apply to every destination.
+              </Text>
             </Stack>
           </Tabs.Panel>
           <Tabs.Panel value="messages" pt="md">

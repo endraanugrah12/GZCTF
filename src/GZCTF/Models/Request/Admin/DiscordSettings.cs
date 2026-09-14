@@ -6,6 +6,32 @@ namespace GZCTF.Models.Request.Admin;
 
 public class DiscordSettings
 {
+    private const string WebhookPattern = "^$|^https://[^\\s]+$";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string FirstBloodWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string SecondBloodWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string ThirdBloodWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string AnnouncementWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string HintWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string ChallengeWebhook { get; set; } = "";
+    [MaxLength(2048), RegularExpression(WebhookPattern)] public string CheatWebhook { get; set; } = "";
+
+    internal string NoticeWebhook(NoticeType type, string? fallback) => Destination(type switch
+    {
+        NoticeType.FirstBlood => FirstBloodWebhook,
+        NoticeType.SecondBlood => SecondBloodWebhook,
+        NoticeType.ThirdBlood => ThirdBloodWebhook,
+        NoticeType.Normal => AnnouncementWebhook,
+        NoticeType.NewHint => HintWebhook,
+        NoticeType.NewChallenge => ChallengeWebhook,
+        _ => ""
+    }, fallback);
+
+    internal string EventWebhook(EventType type, string? fallback) =>
+        type == EventType.CheatDetected ? Destination(CheatWebhook, fallback) : "";
+
+    private static string Destination(string? specific, string? fallback) =>
+        (string.IsNullOrWhiteSpace(specific) ? fallback : specific)?.Trim() ?? "";
+
     public bool Enabled { get; set; } = true;
     public bool Bloods { get; set; } = true;
     public bool Announcements { get; set; } = true;

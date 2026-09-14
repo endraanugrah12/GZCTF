@@ -149,7 +149,7 @@ public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScop
         return null;
     }
 
-    public async Task SendGameEventAsync(GameEvent gameEvent, string webhookUrl)
+    public async Task SendGameEventAsync(GameEvent gameEvent)
     {
         try
         {
@@ -158,10 +158,12 @@ public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScop
             var game = await db.Games.AsNoTracking().SingleOrDefaultAsync(g => g.Id == gameEvent.GameId);
             if (game is null || DateTimeOffset.UtcNow < game.StartTimeUtc || gameEvent.PublishTimeUtc < game.StartTimeUtc) return;
             var options = await DiscordSettings.Read(db, game.Id);
+            var destination = options.EventWebhook(gameEvent.Type, game.DiscordWebhook);
+            if (destination.Length == 0) return;
             var message = CreateEventMessage(gameEvent, game, options, DateTimeOffset.UtcNow);
             if (message == null) return;
 
-            await SendAsync(webhookUrl, message, "event");
+            await SendAsync(destination, message, "event");
         }
         catch (Exception ex)
         {
@@ -169,7 +171,7 @@ public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScop
         }
     }
 
-    public async Task SendNoticeAsync(GameNotice notice, string webhookUrl)
+    public async Task SendNoticeAsync(GameNotice notice)
     {
         try
         {
@@ -181,10 +183,12 @@ public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScop
             if (notice.Type != NoticeType.Normal &&
                 (DateTimeOffset.UtcNow < game.StartTimeUtc || notice.PublishTimeUtc < game.StartTimeUtc)) return;
             var options = await DiscordSettings.Read(db, game.Id);
+            var destination = options.NoticeWebhook(notice.Type, game.DiscordWebhook);
+            if (destination.Length == 0) return;
             var message = CreateNoticeMessage(notice, game, options, DateTimeOffset.UtcNow);
             if (message == null) return;
 
-            await SendAsync(webhookUrl, message, "notice");
+            await SendAsync(destination, message, "notice");
         }
         catch (Exception ex)
         {
@@ -192,7 +196,7 @@ public class SendWebhookService(ILogger<SendWebhookService> logger, IServiceScop
         }
     }
 
-    private async Task SendAsync(string webhookUrl, Models.DiscordWebhookMessage message, string kind)
+    protected virtual async Task SendAsync(string webhookUrl, Models.DiscordWebhookMessage message, string kind)
     {
         if (!Uri.TryCreate(webhookUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))

@@ -26,9 +26,9 @@ public class GameEventRepository(
 
         await hub.Clients.Group($"Game_{gameEvent.GameId}").ReceivedGameEvent(gameEvent);
 
-        if (gameEvent.Game?.DiscordWebhook is { Length: > 0 } webhookUrl)
+        if (gameEvent.Type == EventType.CheatDetected)
         {
-            _ = webhookService.SendGameEventAsync(gameEvent, webhookUrl);
+            _ = webhookService.SendGameEventAsync(gameEvent);
         }
 
         return gameEvent;

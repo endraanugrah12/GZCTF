@@ -11,6 +11,15 @@ challenges and cheat alerts), bot display name/avatar, an anonymous team label,
 blood titles, message templates and an embed footer. Blank message templates disable
 that message type. The preview uses sample values and does not send a real message.
 
+Open **Webhook destinations** to set separate HTTPS webhook URLs for first blood,
+second blood, third blood, new challenges, announcements, hints and cheat alerts.
+For example, route bloods to a public celebration channel and cheat alerts to a
+staff channel. Save these with **Save Discord settings**. Blank destinations use
+the game's default webhook; if neither is set, that type is not sent. Dedicated
+destinations work without a default webhook. Each event is delivered once, to its
+selected destination, and all delivery toggles and freeze privacy rules still apply.
+You can reuse the same URL across several types. No database migration is needed.
+
 Supported placeholders:
 
 | Message | Placeholders |

@@ -27,6 +27,72 @@ namespace GZCTF.Test.UnitTests.Services;
 public class DiscordSettingsTests
 {
     [Theory]
+    [InlineData(NoticeType.FirstBlood, "first")]
+    [InlineData(NoticeType.SecondBlood, "second")]
+    [InlineData(NoticeType.ThirdBlood, "third")]
+    [InlineData(NoticeType.Normal, "announcements")]
+    [InlineData(NoticeType.NewHint, "hints")]
+    [InlineData(NoticeType.NewChallenge, "challenges")]
+    public void SelectsOnlyTheMatchingWebhookAndFallsBackWhenBlank(NoticeType type, string channel)
+    {
+        var settings = new DiscordSettings
+        {
+            FirstBloodWebhook = "https://example.org/first", SecondBloodWebhook = "https://example.org/second",
+            ThirdBloodWebhook = "https://example.org/third", AnnouncementWebhook = "https://example.org/announcements",
+            HintWebhook = "https://example.org/hints", ChallengeWebhook = "https://example.org/challenges"
+        };
+        Assert.Equal($"https://example.org/{channel}", settings.NoticeWebhook(type, "https://example.org/default"));
+        Assert.Equal("https://example.org/default", new DiscordSettings().NoticeWebhook(type, "https://example.org/default"));
+        Assert.Equal("", new DiscordSettings().NoticeWebhook(type, null));
+    }
+
+    [Fact]
+    public async Task DedicatedDestinationsWorkWithoutDefaultAndKeepFreezePrivacyAndDisableSwitches()
+    {
+        await using var db = Database();
+        var now = DateTimeOffset.UtcNow;
+        var game = new Game { Id = 7, Title = "Routing", StartTimeUtc = now.AddHours(-2),
+            EndTimeUtc = now.AddHours(1), FreezeTimeUtc = now.AddMinutes(-5) };
+        db.Games.Add(game);
+        await db.SaveChangesAsync();
+        var settings = new DiscordSettings { FirstBloodWebhook = "https://example.org/public",
+            CheatWebhook = "https://example.org/staff" };
+        var controller = new DiscordSettingsController(db);
+        await controller.Save(7, settings, default);
+        using var services = new ServiceCollection().AddSingleton(db).BuildServiceProvider();
+        var sender = new RecordingWebhook(services.GetRequiredService<IServiceScopeFactory>());
+        var notice = new GameNotice { GameId = 7, Type = NoticeType.FirstBlood,
+            PublishTimeUtc = now, Values = ["SecretTeam", "Challenge"] };
+        await sender.SendNoticeAsync(notice);
+        await sender.SendGameEventAsync(new GameEvent { GameId = 7, Type = EventType.CheatDetected,
+            PublishTimeUtc = now, Team = new Team { Name = "SecretTeam" }, Values = ["OtherSecretTeam"] });
+        Assert.Equal(new[] { "https://example.org/public", "https://example.org/staff" }, sender.Destinations);
+        Assert.All(sender.Payloads, payload => {
+            Assert.DoesNotContain("SecretTeam", payload);
+            Assert.Contains("Anonymous team", payload);
+        });
+        settings.Bloods = false;
+        await controller.Save(7, settings, default);
+        await sender.SendNoticeAsync(notice);
+        Assert.Equal(2, sender.Destinations.Count);
+        Assert.Equal("https://example.org/default", new DiscordSettings().EventWebhook(EventType.CheatDetected, "https://example.org/default"));
+        Assert.Equal("", settings.EventWebhook(EventType.FlagSubmit, "https://example.org/default"));
+    }
+
+    private sealed class RecordingWebhook(IServiceScopeFactory factory)
+        : SendWebhookService(NullLogger<SendWebhookService>.Instance, factory)
+    {
+        internal readonly System.Collections.Generic.List<string> Destinations = [];
+        internal readonly System.Collections.Generic.List<string> Payloads = [];
+        protected override Task SendAsync(string url, GZCTF.Services.Webhook.Models.DiscordWebhookMessage message, string kind)
+        {
+            Destinations.Add(url);
+            Payloads.Add(JsonSerializer.Serialize(message));
+            return Task.CompletedTask;
+        }
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void ProfileReturnsPersistedScoreboardVisibility(bool hidden)
