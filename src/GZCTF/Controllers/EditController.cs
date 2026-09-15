@@ -2039,7 +2039,8 @@ public class EditController(
         [FromServices] Services.Container.Build.IChallengeBuildQueue buildQueue,
         [FromServices] Storage.Interface.IBlobStorage storage,
         [FromServices] IServiceScopeFactory scopeFactory,
-        CancellationToken token)
+        CancellationToken token,
+        [FromQuery] bool noCache = false)
     {
         var challenge = await dbContext.GameChallenges
             .FirstOrDefaultAsync(c => c.GameId == id && c.Id == cId, token);
@@ -2088,7 +2089,8 @@ public class EditController(
                         // precisely because the challenge needs work. A
                         // SHA-match short-circuit here would silently leave
                         // the challenge stuck in Queued forever.
-                        await disc.ScanAsync(bid, userId, CancellationToken.None, force: true);
+                        await disc.ScanAsync(bid, userId, CancellationToken.None, force: true,
+                            noCacheChallengeId: noCache ? cId : null);
                         logger.LogInformation(
                             "Rebuild fallback: scan of binding {Bid} done (challenge {Cid})",
                             bid, cId);
@@ -2181,7 +2183,7 @@ public class EditController(
                     var checkerEnqueue = buildQueue.Enqueue(new Services.Container.Build.ChallengeBuildJob(
                         challenge.Id, challenge.GameId, challenge.Title,
                         checkerSnap, checkerDf, BuildTrigger.Manual,
-                        Kind: Services.Container.Build.ChallengeBuildKind.Checker));
+                        Kind: Services.Container.Build.ChallengeBuildKind.Checker, NoCache: noCache));
                     if (checkerEnqueue != Services.Container.Build.EnqueueResult.Enqueued)
                         try { Directory.Delete(checkerSnap, recursive: true); } catch { /* best effort */ }
                 }
@@ -2294,7 +2296,7 @@ public class EditController(
 
             var enqueueResult = buildQueue.Enqueue(new Services.Container.Build.ChallengeBuildJob(
                 challenge.Id, challenge.GameId, challenge.Title,
-                snap, dockerfile, BuildTrigger.Manual));
+                snap, dockerfile, BuildTrigger.Manual, NoCache: noCache));
 
             switch (enqueueResult)
             {

@@ -9,6 +9,17 @@ namespace GZCTF.Test.UnitTests.Container.Build;
 
 public class K8sChallengeImageBuilderStaticsTest
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BuildctlArguments_RespectCacheMode(bool noCache)
+    {
+        var request = new ChallengeBuildRequest(42, 7, "Web", "/tmp/context", "Dockerfile", NoCache: noCache);
+        var info = K8sChallengeImageBuilder.CreateBuildctlStartInfo(
+            "unix:///run/buildkit/buildkitd.sock", request, "example/image:test", "/tmp/config");
+        Assert.Equal(noCache, info.ArgumentList.Contains("--no-cache"));
+    }
+
     [Fact]
     public void RegistryTarget_NormalizesNamespaceAndKeepsRegistryHost()
     {

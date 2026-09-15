@@ -1,4 +1,10 @@
 {
+  "build_mode": {
+    "title": "Image build mode",
+    "cached": "Build using cache (faster)",
+    "fresh": "Build from scratch (no cache)",
+    "description": "No cache reruns all Dockerfile steps."
+  },
   "button": {
     "back": "Go Back",
     "ad_ops": {

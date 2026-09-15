@@ -76,9 +76,12 @@ public sealed class DockerChallengeImageBuilder(
             string? cachedImageId = null;
             try
             {
-                var existing = await _client.Images.InspectImageAsync(tag, token);
-                cachedImageId = existing.ID;
-                logger.LogInformation("BuildAsync: image {Tag} already exists locally (digest {Id})", tag, existing.ID);
+                if (!req.NoCache)
+                {
+                    var existing = await _client.Images.InspectImageAsync(tag, token);
+                    cachedImageId = existing.ID;
+                    logger.LogInformation("BuildAsync: image {Tag} already exists locally (digest {Id})", tag, existing.ID);
+                }
             }
             catch (DockerImageNotFoundException) { /* not cached */ }
             catch (DockerApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound) { /* not cached */ }
@@ -94,6 +97,9 @@ public sealed class DockerChallengeImageBuilder(
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
 
             var logTail = new StringBuilder();
+            var mode = req.NoCache ? "[build] Build from scratch (no cache)\n" : "[build] Cache enabled\n";
+            AppendTail(logTail, mode);
+            try { onProgress?.Invoke(mode); } catch { /* sink errors must not break the build */ }
             string? lastError = null;
             string? imageId = cachedImageId;
 
@@ -122,20 +128,7 @@ public sealed class DockerChallengeImageBuilder(
                 await using (var contextStream = File.OpenRead(contextTar))
                 {
                     await _client.Images.BuildImageFromDockerfileAsync(
-                        new ImageBuildParameters
-                        {
-                            Dockerfile = req.Dockerfile,
-                            Tags = [tag],
-                            Remove = true,
-                            ForceRemove = true,
-                            NoCache = false,
-                            // Mark platform-built images so a host-side
-                            // `docker image prune -af --filter label!=org.gzctf.keep=true`
-                            // won't delete them. Critical for A&D checker images, which
-                            // have no long-running container holding them (spawned per
-                            // tick) and would otherwise be pruned → checks InternalError.
-                            Labels = new Dictionary<string, string> { ["org.gzctf.keep"] = "true" },
-                        },
+                        CreateBuildParameters(req, tag),
                         contextStream,
                         authConfigs: null,
                         headers: null,
@@ -225,6 +218,17 @@ public sealed class DockerChallengeImageBuilder(
     // context tarball + dockerfile under the data dir so the image can be rebuilt
     // byte-for-byte (same content → same deterministic tag) on demand, with no
     // re-import. AdCheckerImageHealService drives the restore.
+
+    internal static ImageBuildParameters CreateBuildParameters(ChallengeBuildRequest req, string tag) => new()
+    {
+        Dockerfile = req.Dockerfile,
+        Tags = [tag],
+        Remove = true,
+        ForceRemove = true,
+        NoCache = req.NoCache,
+        // Preserve platform/checker images during label-filtered host cleanup.
+        Labels = new Dictionary<string, string> { ["org.gzctf.keep"] = "true" },
+    };
 
     private static string StoreRoot => Path.Combine(PathHelper.Base, "build-contexts");
 

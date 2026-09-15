@@ -14,6 +14,21 @@ namespace GZCTF.Test.UnitTests.Container.Build;
 /// </summary>
 public class ChallengeBuildQueueTest
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QueueAndRetry_PreserveCacheMode(bool noCache)
+    {
+        var (queue, reader) = Build();
+        var job = Job(42) with { NoCache = noCache };
+        Assert.Equal(EnqueueResult.Enqueued, queue.Enqueue(job));
+        Assert.True(reader.TryRead(out var queued));
+        Assert.Equal(noCache, queued.NoCache);
+        Assert.True(queue.TryRetry(queued with { Attempt = 2, Trigger = BuildTrigger.AutoRetry }));
+        Assert.True(reader.TryRead(out var retry));
+        Assert.Equal(noCache, retry.NoCache);
+    }
+
     private static ChallengeBuildJob Job(int challengeId, int attempt = 1) => new(
         ChallengeId: challengeId,
         GameId: 1,

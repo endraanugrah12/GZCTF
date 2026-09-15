@@ -83,7 +83,8 @@ public sealed class RepoBindingDiscoveryService(
     /// requests where the operator's intent is to rebuild everything
     /// even though git didn't move (e.g. recovering from a partial
     /// scan or testing the import pipeline).</param>
-    public async Task<RepoBindingScanResult> ScanAsync(int bindingId, Guid adminUserId, CancellationToken token, bool force = false)
+    public async Task<RepoBindingScanResult> ScanAsync(int bindingId, Guid adminUserId, CancellationToken token, bool force = false,
+        int? noCacheChallengeId = null)
     {
         var binding = await context.GameRepoBindings.FirstOrDefaultAsync(b => b.Id == bindingId, token);
         if (binding is null)
@@ -205,7 +206,8 @@ public sealed class RepoBindingDiscoveryService(
                     var importResult = await challengeImporter.ImportFromWorkDirAsync(
                         scanRoot,
                         string.IsNullOrEmpty(eventRootRel) ? null : eventRootRel,
-                        new ChallengeImportOptions(game.Id, adminUserId, AutoApprove: true),
+                        new ChallengeImportOptions(game.Id, adminUserId, AutoApprove: true,
+                            NoCacheChallengeId: noCacheChallengeId),
                         originalArchiveBlobPath: null,
                         token);
 

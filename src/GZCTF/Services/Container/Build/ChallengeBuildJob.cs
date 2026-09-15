@@ -58,4 +58,5 @@ public sealed record ChallengeBuildJob(
     BuildTrigger Trigger,
     int Attempt = 1,
     bool OwnsContextDir = true,
-    ChallengeBuildKind Kind = ChallengeBuildKind.Challenge);
+    ChallengeBuildKind Kind = ChallengeBuildKind.Challenge,
+    bool NoCache = false);

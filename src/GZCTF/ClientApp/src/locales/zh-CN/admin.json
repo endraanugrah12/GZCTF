@@ -1,4 +1,10 @@
 {
+  "build_mode": {
+    "title": "镜像构建模式",
+    "cached": "使用缓存构建（更快）",
+    "fresh": "从头构建（不使用缓存）",
+    "description": "不使用缓存将重新执行 Dockerfile 构建步骤。"
+  },
   "tooltip": {
     "ad_ops": {
       "enable_challenge": "重新启用此题目的计分与 Flag 轮换",

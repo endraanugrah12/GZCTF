@@ -19,6 +19,7 @@ import { Icon } from '@mdi/react'
 import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
+import { BuildModeMenu } from '@Components/admin/BuildModeMenu'
 import { useChallengeCategoryLabelMap, showErrorMsg } from '@Utils/Shared'
 import api, { ChallengeInfoModel, ChallengeCategory } from '@Api'
 import classes from '@Styles/ChallengeEditCard.module.css'
@@ -73,15 +74,17 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({
   // a Build button there is just noise. Same for challenges that
   // explicitly ship a registry image (NotApplicable).
   const isBuildable =
-    (challenge.type === 'StaticContainer' || challenge.type === 'DynamicContainer'
-      || challenge.type === 'AttackDefense' || challenge.type === 'KingOfTheHill')
-    && challenge.buildStatus !== 'NotApplicable'
+    (challenge.type === 'StaticContainer' ||
+      challenge.type === 'DynamicContainer' ||
+      challenge.type === 'AttackDefense' ||
+      challenge.type === 'KingOfTheHill') &&
+    challenge.buildStatus !== 'NotApplicable'
 
-  const onBuildNow = async () => {
+  const onBuildNow = async (noCache: boolean) => {
     if (challenge.id == null) return
     setBuilding(true)
     try {
-      await api.edit.editRebuildChallengeImage(numId, challenge.id)
+      await api.edit.editRebuildChallengeImage(numId, challenge.id, { noCache })
       showNotification({
         color: 'teal',
         message: t('admin.notification.builds.enqueued'),
@@ -103,7 +106,9 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({
   // Queued/Building.
   useEffect(() => {
     if (!inFlightBuild || !onMutate) return
-    const timer = window.setInterval(() => { onMutate() }, 2000)
+    const timer = window.setInterval(() => {
+      onMutate()
+    }, 2000)
     return () => window.clearInterval(timer)
   }, [inFlightBuild, onMutate])
   const { colorScheme } = useMantineColorScheme()
@@ -138,7 +143,11 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({
           onChange={() => onToggle(challenge, setDisabled)}
         />
 
-        <Icon path={data?.icon ?? mdiFlagOutline} color={theme.colors[data?.color ?? theme.primaryColor][5]} size={1.2} />
+        <Icon
+          path={data?.icon ?? mdiFlagOutline}
+          color={theme.colors[data?.color ?? theme.primaryColor][5]}
+          size={1.2}
+        />
 
         <Stack gap={0} maw={contentWidth} miw={contentWidth}>
           <Group gap={6} wrap="nowrap">
@@ -153,7 +162,14 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({
               </Tooltip>
             )}
             {challenge.type === 'KingOfTheHill' && (
-              <Tooltip label={t('admin.content.review.badge.koth_help', 'King of the Hill — single shared hill, hold-time scoring')} multiline w={260}>
+              <Tooltip
+                label={t(
+                  'admin.content.review.badge.koth_help',
+                  'King of the Hill — single shared hill, hold-time scoring'
+                )}
+                multiline
+                w={260}
+              >
                 <Badge size="xs" color="violet" variant="filled">
                   {t('admin.content.review.badge.koth', 'KotH')}
                 </Badge>
@@ -215,30 +231,16 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({
         </Stack>
 
         {isBuildable && (
-          <Tooltip
-            label={
-              inFlightBuild
-                ? t('admin.button.challenges.build_in_flight')
-                : t('admin.button.challenges.build_now')
-            }
-            ta="end"
-            position="left"
-            offset={98}
-            classNames={classes}
-          >
+          <BuildModeMenu onBuild={onBuildNow}>
             <ActionIcon
+              aria-label={t('admin.button.challenges.build_now')}
               c={color}
               variant="subtle"
               disabled={building || inFlightBuild}
-              onClick={onBuildNow}
             >
-              {building || inFlightBuild ? (
-                <Loader size="xs" />
-              ) : (
-                <Icon path={mdiHammerWrench} size={1} />
-              )}
+              {building || inFlightBuild ? <Loader size="xs" /> : <Icon path={mdiHammerWrench} size={1} />}
             </ActionIcon>
-          </Tooltip>
+          </BuildModeMenu>
         )}
         <Tooltip label={t('admin.button.challenges.edit')} position="left" offset={10} classNames={classes}>
           <ActionIcon c={color} component={Link} to={`/admin/games/${id}/challenges/${challenge.id}`}>

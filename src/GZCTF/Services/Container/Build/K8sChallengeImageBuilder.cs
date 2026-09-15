@@ -41,6 +41,7 @@ public sealed class K8sChallengeImageBuilder(
             return Failure($"Dockerfile does not exist in the build context: {req.Dockerfile}");
 
         var logTail = new StringBuilder();
+        AppendLine(logTail, req.NoCache ? "[build] Build from scratch (no cache)" : "[build] Cache enabled", onProgress);
         var hashTar = Path.Combine(Path.GetTempPath(), $"gzctf-k8s-build-{Guid.NewGuid():N}.tar.gz");
         var dockerConfigDir = Path.Combine(Path.GetTempPath(), $"gzctf-docker-config-{Guid.NewGuid():N}");
 
@@ -146,6 +147,8 @@ public sealed class K8sChallengeImageBuilder(
                  })
             info.ArgumentList.Add(arg);
 
+        if (req.NoCache)
+            info.ArgumentList.Add("--no-cache");
         return info;
     }
 

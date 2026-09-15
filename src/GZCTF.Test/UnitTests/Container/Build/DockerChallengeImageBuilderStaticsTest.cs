@@ -17,6 +17,25 @@ namespace GZCTF.Test.UnitTests.Container.Build;
 /// </summary>
 public class DockerChallengeImageBuilderStaticsTest
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BuildParameters_RespectCacheModeAndKeepImageProtection(bool noCache)
+    {
+        var request = new ChallengeBuildRequest(42, 7, "Web", "/tmp/context", "nested/Dockerfile", NoCache: noCache);
+        var parameters = DockerChallengeImageBuilder.CreateBuildParameters(request, "example/image:test");
+        Assert.Equal(noCache, parameters.NoCache);
+        Assert.Equal("nested/Dockerfile", parameters.Dockerfile);
+        Assert.Contains("example/image:test", parameters.Tags);
+        Assert.Equal("true", parameters.Labels["org.gzctf.keep"]);
+    }
+
+    [Fact]
+    public void BuildRequest_DefaultsToCacheEnabled()
+    {
+        Assert.False(new ChallengeBuildRequest(42, 7, "Web", "/tmp/context", "Dockerfile").NoCache);
+    }
+
     #region NormalizeSlug
 
     [Theory]

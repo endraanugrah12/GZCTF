@@ -33,6 +33,7 @@ import { InstanceEntry } from '@Components/InstanceEntry'
 import { ChallengePreviewModal } from '@Components/admin/ChallengePreviewModal'
 import { ContainerExecModal } from '@Components/admin/ContainerExecModal'
 import { ChallengeRuntimeLogs } from '@Components/admin/ChallengeRuntimeLogs'
+import { BuildModeMenu } from '@Components/admin/BuildModeMenu'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
 import { WithChallengeEdit } from '@Components/admin/WithChallengeEdit'
 import { ScoreFunc } from '@Components/charts/ScoreFunc'
@@ -239,10 +240,10 @@ const GameChallengeEdit: FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inFlightBuild])
 
-  const onBuildNow = async () => {
+  const onBuildNow = async (noCache: boolean) => {
     setBuilding(true)
     try {
-      await api.edit.editRebuildChallengeImage(numId, numCId)
+      await api.edit.editRebuildChallengeImage(numId, numCId, { noCache })
       showNotification({
         color: 'teal',
         message: t('admin.notification.builds.enqueued'),
@@ -376,18 +377,19 @@ const GameChallengeEdit: FC = () => {
               {t('admin.button.challenges.delete')}
             </Button>
             {isBuildable && (
-              <Button
-                disabled={disabled || building || inFlightBuild}
-                color="orange"
-                variant="outline"
-                leftSection={<Icon path={mdiHammerWrench} size={1} />}
-                onClick={onBuildNow}
-                loading={building || inFlightBuild}
-              >
-                {inFlightBuild
-                  ? t('admin.button.challenges.build_in_flight')
-                  : t('admin.button.challenges.build_now')}
-              </Button>
+              <BuildModeMenu onBuild={onBuildNow}>
+                <Button
+                  disabled={disabled || building || inFlightBuild}
+                  color="orange"
+                  variant="outline"
+                  leftSection={<Icon path={mdiHammerWrench} size={1} />}
+                  loading={building || inFlightBuild}
+                >
+                  {inFlightBuild
+                    ? t('admin.button.challenges.build_in_flight')
+                    : t('admin.button.challenges.build_now')}
+                </Button>
+              </BuildModeMenu>
             )}
             <Button
               disabled={disabled}

@@ -14,7 +14,8 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace GZCTF.Services.Transfer;
 
-public sealed record ChallengeImportOptions(int GameId, Guid SubmitterUserId, bool AutoApprove);
+public sealed record ChallengeImportOptions(int GameId, Guid SubmitterUserId, bool AutoApprove,
+    int? NoCacheChallengeId = null);
 
 public sealed record ChallengeImportResult(
     int Imported,
@@ -358,7 +359,7 @@ public sealed class ChallengeImportService(
                 var enqueueResult = buildQueue.Enqueue(new ChallengeBuildJob(
                     challenge.Id, game.Id, model.Name!,
                     snap, intent.Dockerfile!,
-                    BuildTrigger.Import));
+                    BuildTrigger.Import, NoCache: opts.NoCacheChallengeId == challenge.Id));
 
                 switch (enqueueResult)
                 {
@@ -431,7 +432,7 @@ public sealed class ChallengeImportService(
                         challenge.Id, game.Id, model.Name!,
                         checkerSnap, checkerDf,
                         BuildTrigger.Import,
-                        Kind: ChallengeBuildKind.Checker));
+                        Kind: ChallengeBuildKind.Checker, NoCache: opts.NoCacheChallengeId == challenge.Id));
                     if (checkerEnqueue != EnqueueResult.Enqueued)
                         SafeDelete(checkerSnap); // AlreadyPending dedup or queue full — drop the snapshot
                     else

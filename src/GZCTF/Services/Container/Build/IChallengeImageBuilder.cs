@@ -11,7 +11,8 @@ public sealed record ChallengeBuildRequest(
     string ChallengeSlug,
     string ContextDir,
     string Dockerfile,
-    ChallengeBuildKind Kind = ChallengeBuildKind.Challenge);
+    ChallengeBuildKind Kind = ChallengeBuildKind.Challenge,
+    bool NoCache = false);
 
 /// <summary>
 /// Outcome of a single build. On success <see cref="ImageTag"/> is what

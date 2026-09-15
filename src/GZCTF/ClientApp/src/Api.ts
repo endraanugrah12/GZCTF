@@ -6909,11 +6909,13 @@ export class Api<
     editRebuildChallengeImage: (
       id: number,
       cId: number,
+      query?: { noCache?: boolean },
       params: RequestParams = {},
     ) =>
       this.request<ChallengeAuditModel, RequestResponse>({
         path: `/api/edit/games/${id}/challenges/${cId}/rebuild`,
         method: "POST",
+        query,
         format: "json",
         ...params,
       }),
