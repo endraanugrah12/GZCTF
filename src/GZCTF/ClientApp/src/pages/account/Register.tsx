@@ -1,9 +1,9 @@
-import { Anchor, Button, PasswordInput, TextInput } from '@mantine/core'
+import { Alert, Anchor, Button, PasswordInput, TextInput } from '@mantine/core'
 import { useDisclosure, useInputState } from '@mantine/hooks'
 import { showNotification, updateNotification } from '@mantine/notifications'
 import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import { FC, useState } from 'react'
+import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { AccountView } from '@Components/AccountView'
@@ -17,6 +17,7 @@ import { usePageTitle } from '@Hooks/usePageTitle'
 import { TermsOfService } from '@Components/TermsOfService'
 import api, { RegisterStatus } from '@Api'
 import misc from '@Styles/Misc.module.css'
+import { invitationRequest } from '@Utils/TeamInvitations'
 
 const Register: FC = () => {
   const [pwd, setPwd] = useInputState('')
@@ -24,6 +25,19 @@ const Register: FC = () => {
   const [uname, setUname] = useInputState('')
   const [email, setEmail] = useInputState('')
   const [disabled, setDisabled] = useState(false)
+  const [invitationToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('invitation'))
+  const [invitation, setInvitation] = useState<{ email: string; teamName: string; expiresAt: string } | null>(null)
+  const [invitationError, setInvitationError] = useState('')
+  useEffect(() => {
+    if (!invitationToken) return
+    let active = true
+    void invitationRequest<{ email: string; teamName: string; expiresAt: string }>(
+      '/api/account/PreviewInvitation', 'POST', { token: invitationToken }
+    ).then((data) => {
+      if (active) { setInvitation(data); setEmail(data.email) }
+    }).catch((e: Error) => { if (active) setInvitationError(e.message) })
+    return () => { active = false }
+  }, [invitationToken])
   const [accepted, setAccepted] = useState(false)
   const [tosOpened, { open: openTos, close: closeTos }] = useDisclosure(false)
   const { config } = useConfig()
@@ -60,6 +74,7 @@ const Register: FC = () => {
   usePageTitle(t('account.title.register'))
 
   const executeRegister = async () => {
+    if (disabled || (invitationToken && !invitation)) return
     if (config.enableBrowserFingerprint && !accepted) {
       openTos()
       return
@@ -120,14 +135,19 @@ const Register: FC = () => {
         })()
         : undefined
 
-      const res = await api.account.accountRegister({
+      const registration = {
         userName: uname,
         password: await encryptApiData(t, pwd, config.apiPublicKey),
         email: email,
         challenge: token,
         fingerprint: fingerprintPayload?.fingerprint,
         fingerprintProof: fingerprintPayload?.fingerprintProof,
-      })
+      }
+      const res = invitationToken
+        ? { data: await invitationRequest<{ data?: RegisterStatus }>(
+          '/api/account/RedeemInvitation', 'POST', { ...registration, token: invitationToken }
+        ) }
+        : await api.account.accountRegister(registration)
       const data = RegisterStatusMap.get(res.data.data)
       if (data) {
         updateNotification({
@@ -171,6 +191,11 @@ const Register: FC = () => {
 
   return (
     <AccountView onSubmit={onRegister}>
+      {invitationToken && <Alert color={invitationError ? 'red' : 'blue'} w="100%">
+        {invitationError || (invitation
+          ? `Create your account as leader of ${invitation.teamName}. Expires ${new Date(invitation.expiresAt).toLocaleString()}.`
+          : 'Checking invitation…')}
+      </Alert>}
       <TextInput
         required
         label={t('account.label.email')}
@@ -178,6 +203,7 @@ const Register: FC = () => {
         placeholder="ctf@example.com"
         w="100%"
         value={email}
+        readOnly={!!invitationToken}
         disabled={disabled}
         onChange={(event) => setEmail(event.currentTarget.value)}
       />
@@ -215,10 +241,10 @@ const Register: FC = () => {
       <Anchor fz="xs" className={misc.alignSelfEnd} component={Link} to="/account/login">
         {t('account.anchor.login')}
       </Anchor>
-      <Button type="submit" fullWidth onClick={onRegister} disabled={disabled}>
+      <Button type="submit" fullWidth disabled={disabled || (!!invitationToken && !invitation)}>
         {t('account.button.register')}
       </Button>
-      <OAuthButtons />
+      {!invitationToken && <OAuthButtons />}
     </AccountView>
   )
 }

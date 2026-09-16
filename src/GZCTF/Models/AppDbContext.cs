@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     public DbSet<Post> Posts { get; set; } = null!;
     public DbSet<Game> Games { get; set; } = null!;
     public DbSet<Team> Teams { get; set; } = null!;
+    public DbSet<TeamInvitation> TeamInvitations { get; set; } = null!;
     public DbSet<Config> Configs { get; set; } = null!;
     public DbSet<LogModel> Logs { get; set; } = null!;
     public DbSet<Division> Divisions { get; set; } = null!;

@@ -89,7 +89,8 @@ public partial class TeamController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> CreateTeam([FromBody] TeamUpdateModel model, CancellationToken token)
+    public async Task<IActionResult> CreateTeam([FromBody] TeamUpdateModel model, CancellationToken token,
+        [FromServices] AppDbContext db)
     {
         var user = await userManager.GetUserAsync(User);
 
@@ -104,6 +105,10 @@ public partial class TeamController(
 
         if (model.Name is null)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_CreationFailed)]));
+
+        var normalizedName = model.Name.Trim().ToUpperInvariant();
+        if (await db.TeamInvitations.AnyAsync(i => i.RedeemedAt == null && i.NormalizedTeamName == normalizedName, token))
+            return Conflict(new RequestResponse("This team name is reserved for an invited leader."));
 
         var team = await teamRepository.CreateTeam(model, user!, token);
 
@@ -135,7 +140,7 @@ public partial class TeamController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateTeam([FromRoute] int id, [FromBody] TeamUpdateModel model,
-        CancellationToken token)
+        CancellationToken token, [FromServices] AppDbContext db)
     {
         var user = await userManager.GetUserAsync(User);
         var team = await teamRepository.GetTeamById(id, token);
@@ -148,6 +153,12 @@ public partial class TeamController(
                 StatusCodes.Status403Forbidden);
 
         var oldName = team.Name;
+        if (!string.IsNullOrWhiteSpace(model.Name))
+        {
+            var normalizedName = model.Name.Trim().ToUpperInvariant();
+            if (await db.TeamInvitations.AnyAsync(i => i.RedeemedAt == null && i.NormalizedTeamName == normalizedName, token))
+                return Conflict(new RequestResponse("This team name is reserved for an invited leader."));
+        }
         team.UpdateInfo(model);
 
         await teamRepository.SaveAsync(token);

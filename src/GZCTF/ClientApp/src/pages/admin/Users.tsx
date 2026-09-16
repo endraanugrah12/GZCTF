@@ -262,7 +262,7 @@ const Users: FC = () => {
               size="sm"
               onClick={() => setImportModalOpened(true)}
             >
-              Import CSV
+              CSV / Invitations
             </Button>
             <Text fw="bold" size="sm">
               <Trans
