@@ -3,6 +3,11 @@ export interface InvitationRow {
   teamName: string
 }
 
+export interface ExportableInvitation extends InvitationRow {
+  token: string
+  expiresAt: string
+}
+
 /** Strict two-column CSV with quoted fields, CRLF, BOM and embedded newlines. */
 export function parseInvitationCsv(input: string): InvitationRow[] {
   const records: string[][] = []
@@ -69,9 +74,32 @@ export function parseInvitationCsv(input: string): InvitationRow[] {
   })
 }
 
-export function invitationLink(token: string): string {
+export function invitationLink(token: string, origin = window.location.origin): string {
   // Fragment is not sent in HTTP requests or referrers; send the token only in POST bodies.
-  return `${window.location.origin}/account/register#invitation=${encodeURIComponent(token)}`
+  return `${origin}/account/register#invitation=${encodeURIComponent(token)}`
+}
+
+function csvCell(value: string): string {
+  // Quoting does not stop spreadsheet formula execution. Prefix potentially
+  // executable cells while preserving their visible value.
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value
+  return `"${safe.replace(/"/g, '""')}"`
+}
+
+export function invitationExportCsv(rows: ExportableInvitation[], origin = window.location.origin): string {
+  return [
+    'email,team_name,invitation_link,expires_at',
+    ...rows.map((row) =>
+      [row.email, row.teamName, invitationLink(row.token, origin), row.expiresAt].map(csvCell).join(',')
+    ),
+  ].join('\n')
+}
+
+export function downloadTextFile(contents: string, name: string): void {
+  const url = URL.createObjectURL(new Blob([contents], { type: 'text/csv;charset=utf-8' }))
+  const anchor = Object.assign(document.createElement('a'), { href: url, download: name })
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function invitationRequest<T>(path: string, method = 'GET', data?: unknown): Promise<T> {

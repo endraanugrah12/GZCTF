@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using GZCTF.Models;
 using GZCTF.Models.Data;
 using GZCTF.Models.Request.Admin;
+using GZCTF.Models.Internal;
+using GZCTF.Controllers;
 using GZCTF.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,22 @@ namespace GZCTF.Test.UnitTests.Services;
 
 public class TeamInvitationTests
 {
+    [Fact]
+    public void TeamCreationPolicy_BlocksPlayersButNotAdmins_WhenDisabled()
+    {
+        var policy = new AccountPolicy { AllowPlayerTeamCreation = false };
+        Assert.False(TeamController.MayCreateTeam(policy, new UserInfo { Role = GZCTF.Utils.Role.User }));
+        Assert.True(TeamController.MayCreateTeam(policy, new UserInfo { Role = GZCTF.Utils.Role.Admin }));
+        policy.AllowPlayerTeamCreation = true;
+        Assert.True(TeamController.MayCreateTeam(policy, new UserInfo { Role = GZCTF.Utils.Role.User }));
+    }
+
+    [Fact]
+    public void PlayerTeamCreation_DefaultsEnabled()
+    {
+        Assert.True(new AccountPolicy().AllowPlayerTeamCreation);
+    }
+
     private readonly IDataProtector _protector = new EphemeralDataProtectionProvider()
         .CreateProtector(TeamInvitationTokens.ProtectionPurpose);
     private static readonly DateTimeOffset Now = new(2026, 9, 16, 0, 0, 0, TimeSpan.Zero);

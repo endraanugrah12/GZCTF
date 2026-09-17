@@ -14,8 +14,15 @@ import {
   Text,
   Textarea,
 } from '@mantine/core'
-import { FC, useEffect, useState } from 'react'
-import { invitationLink, invitationRequest, parseInvitationCsv } from '@Utils/TeamInvitations'
+import { Dropzone } from '@mantine/dropzone'
+import { FC, useEffect, useMemo, useState } from 'react'
+import {
+  downloadTextFile,
+  invitationExportCsv,
+  invitationLink,
+  invitationRequest,
+  parseInvitationCsv,
+} from '@Utils/TeamInvitations'
 
 interface Invitation {
   id: string
@@ -40,6 +47,7 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [newBatch, setNewBatch] = useState<Invitation[]>([])
   const base = '/api/admin/team-invitations'
   const reload = async () => {
     const list = await invitationRequest<{ items: Invitation[]; total: number }>(`${base}?page=${page}`)
@@ -49,6 +57,7 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
   useEffect(() => {
     if (!props.opened) {
       setRows([])
+      setNewBatch([])
       setLoaded(false)
       return
     }
@@ -99,6 +108,27 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
         action === 'regenerate' ? 'New invitation created. Copy and distribute the new link.' : 'Invitation revoked.'
       )
     })
+  }
+  const preview = useMemo(() => {
+    if (!csv.trim()) return { rows: [], error: '' }
+    try {
+      return { rows: parseInvitationCsv(csv), error: '' }
+    } catch (e) {
+      return { rows: [], error: e instanceof Error ? e.message : 'Invalid CSV.' }
+    }
+  }, [csv])
+  const loadFile = async (file: File) => {
+    if (file.size > 1024 * 1024) throw new Error('CSV must be smaller than 1 MiB.')
+    const text = await file.text()
+    parseInvitationCsv(text)
+    setCsv(text)
+  }
+  const downloadable = (items: Invitation[]) =>
+    items.filter((item): item is Invitation & { token: string } => item.status === 'pending' && !!item.token)
+  const downloadInvitations = (items: Invitation[], filename: string) => {
+    const active = downloadable(items)
+    if (!active.length) throw new Error('There are no active invitation links to export.')
+    downloadTextFile(invitationExportCsv(active), filename)
   }
   return (
     <Modal
@@ -151,6 +181,23 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
           Saved lifetime: {savedDays} days. Applies to new and regenerated invitations. Existing expiration dates do not
           change.
         </Text>
+        <Dropzone
+          accept={['text/csv', 'text/plain', 'application/vnd.ms-excel']}
+          maxSize={1024 * 1024}
+          multiple={false}
+          disabled={busy}
+          onDrop={(files) => {
+            if (files[0]) void run(async () => loadFile(files[0]))
+          }}
+          onReject={() => setError('Drop one CSV file smaller than 1 MiB.')}
+        >
+          <Stack align="center" gap={4} py="md">
+            <Text fw={600}>Drag and drop your CSV here</Text>
+            <Text size="xs" c="dimmed">
+              Required headers: email,team_name
+            </Text>
+          </Stack>
+        </Dropzone>
         <Textarea
           label="CSV: email,team_name"
           autosize
@@ -167,10 +214,7 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
             onChange={(file) => {
               if (file)
                 void run(async () => {
-                  if (file.size > 1024 * 1024) throw new Error('CSV must be smaller than 1 MiB.')
-                  const text = await file.text()
-                  parseInvitationCsv(text)
-                  setCsv(text)
+                  await loadFile(file)
                 })
             }}
           >
@@ -181,12 +225,25 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
             )}
           </FileButton>
           <Button
-            disabled={busy || !loaded || !csv.trim() || days !== savedDays}
+            variant="subtle"
+            disabled={busy}
+            onClick={() =>
+              downloadTextFile('email,team_name\nleader@example.com,Team Alpha\n', 'team-invitations-template.csv')
+            }
+          >
+            Download template
+          </Button>
+          <Button
+            disabled={busy || !loaded || !preview.rows.length || !!preview.error || days !== savedDays}
             loading={busy}
             onClick={() =>
               void run(async () => {
-                const parsed = parseInvitationCsv(csv)
-                const result = await invitationRequest<{ created: number }>(`${base}/import`, 'POST', { rows: parsed })
+                const result = await invitationRequest<{ created: number; invitations: Invitation[] }>(
+                  `${base}/import`,
+                  'POST',
+                  { rows: preview.rows }
+                )
+                setNewBatch(result.invitations)
                 setCsv('')
                 await reload()
                 onImportComplete?.()
@@ -198,10 +255,66 @@ export const UserImportModal: FC<UserImportModalProps> = ({ onImportComplete, ..
           </Button>
           {days !== savedDays && <Text size="xs">Save the lifetime before importing.</Text>}
         </Group>
+        {preview.error && (
+          <Alert color="orange" title="CSV validation">
+            {preview.error}
+          </Alert>
+        )}
+        {!!preview.rows.length && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600}>
+              Preview: {preview.rows.length} team{preview.rows.length === 1 ? '' : 's'}
+            </Text>
+            <ScrollArea h={Math.min(240, 42 + preview.rows.length * 34)}>
+              <Table striped withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Leader email</Table.Th>
+                    <Table.Th>Team name</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {preview.rows.slice(0, 50).map((row) => (
+                    <Table.Tr key={`${row.email}:${row.teamName}`}>
+                      <Table.Td>{row.email}</Table.Td>
+                      <Table.Td>{row.teamName}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+            {preview.rows.length > 50 && (
+              <Text size="xs" c="dimmed">
+                Showing the first 50 rows.
+              </Text>
+            )}
+          </Stack>
+        )}
         <Text size="sm">
           Pending invitations reserve team names. The account and team are created together on redemption. Treat links
           as secrets; anyone holding a link can claim that team's leader account.
         </Text>
+        <Group>
+          <Button
+            variant="light"
+            disabled={busy || !downloadable(newBatch).length}
+            onClick={() => void run(async () => downloadInvitations(newBatch, 'team-invitations-new-batch.csv'))}
+          >
+            Download new batch CSV
+          </Button>
+          <Button
+            variant="light"
+            disabled={busy || !loaded}
+            onClick={() =>
+              void run(async () => {
+                const active = await invitationRequest<Invitation[]>(`${base}/active`)
+                downloadInvitations(active, 'team-invitations-active.csv')
+              })
+            }
+          >
+            Download all active CSV
+          </Button>
+        </Group>
         <ScrollArea>
           <Table miw={740}>
             <Table.Thead>

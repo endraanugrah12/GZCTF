@@ -17,6 +17,8 @@ Open **Admin → Users → CSV / Invitations**.
    and teams reject the entire import; no partial batch is created.
 4. Use **Copy link** for each row and securely send it to that leader.
    The platform does not automatically send invitation emails.
+   **Download new batch CSV** exports the most recent import, while **Download
+   all active CSV** exports every usable invitation across all table pages.
 5. The leader opens the link while signed out and chooses a username and password. The email is
    fixed by the invitation. Redemption creates the account and team together,
    assigns the account as captain/member, and signs them in.
@@ -57,6 +59,11 @@ Deployment includes migration **20260916010000_TeamLeaderInvitations**, adding o
 table and indexes. Back up the database before upgrading. No existing accounts,
 credentials or teams are modified. The old credential-import API is retained
 for compatibility, but the Admin Users CSV interface uses invitations only.
+
+To prevent ordinary players from creating unrelated teams, disable **Admin →
+Settings → Users → Allow players to create teams**. This hides the player
+button and enforces the restriction in the API. Administrators and invitation
+redemption remain able to create teams.
 
 The isolated PostgreSQL regression tests can be enabled with
 `GZCTF_INVITATION_TEST_CONNECTION`. They create and drop uniquely named

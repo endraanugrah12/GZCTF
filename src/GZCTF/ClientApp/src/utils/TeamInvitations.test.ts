@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseInvitationCsv } from './TeamInvitations'
+import { invitationExportCsv, parseInvitationCsv } from './TeamInvitations'
 
 test('invitation CSV requires only email and team_name, with either column order', () => {
   assert.deepEqual(parseInvitationCsv('email,team_name\nleader@example.com,Team Alpha'), [
@@ -36,4 +36,26 @@ test('CSV rejects malformed quotes and excessive row counts', () => {
   assert.throws(() =>
     parseInvitationCsv('email,team_name\n' + Array.from({ length: 501 }, (_, i) => `a${i}@b.com,Team ${i}`).join('\n'))
   )
+})
+
+test('export contains leader email, team, matching link and expiration', () => {
+  const csv = invitationExportCsv(
+    [{ email: 'leader@example.com', teamName: 'Team, "A"', token: 'abc_123', expiresAt: '2026-10-01T00:00:00Z' }],
+    'https://ctf.example.com'
+  )
+  assert.equal(
+    csv,
+    'email,team_name,invitation_link,expires_at\n' +
+      '"leader@example.com","Team, ""A""","https://ctf.example.com/account/register#invitation=abc_123","2026-10-01T00:00:00Z"'
+  )
+})
+
+test('export neutralizes spreadsheet formulas', () => {
+  const csv = invitationExportCsv(
+    [{ email: '=cmd@example.com', teamName: '+malicious', token: 'token', expiresAt: '-1' }],
+    'https://ctf.example.com'
+  )
+  assert.match(csv, /"'=cmd@example.com"/)
+  assert.match(csv, /"'\+malicious"/)
+  assert.match(csv, /"'-1"/)
 })

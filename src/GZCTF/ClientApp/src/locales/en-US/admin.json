@@ -606,6 +606,10 @@
           "description": "Allow users to register new accounts",
           "label": "Allow Register"
         },
+        "allow_player_team_creation": {
+          "description": "Allow ordinary players to create teams. Admin-created teams and team-leader invitations still work.",
+          "label": "Allow players to create teams"
+        },
         "auto_active": {
           "description": "Whether to activate users after registered",
           "label": "Auto-activate"

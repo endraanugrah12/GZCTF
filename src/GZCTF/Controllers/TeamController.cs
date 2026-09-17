@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using System.Text.RegularExpressions;
 using GZCTF.Middlewares;
+using GZCTF.Models.Internal;
 using GZCTF.Models.Request.Info;
 using GZCTF.Repositories.Interface;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Options;
 using Org.BouncyCastle.Crypto.Parameters;
 
 namespace GZCTF.Controllers;
@@ -24,9 +26,12 @@ public partial class TeamController(
     ILogger<TeamController> logger,
     ITeamRepository teamRepository,
     IParticipationRepository participationRepository,
+    IOptionsSnapshot<AccountPolicy> accountPolicy,
     IStringLocalizer<Program> localizer) : ControllerBase
 {
     private const int MaxTeamsAllowed = 3;
+    internal static bool MayCreateTeam(AccountPolicy policy, UserInfo user) =>
+        policy.AllowPlayerTeamCreation || user.Role >= Role.Admin;
 
     /// <summary>
     /// Get team information
@@ -93,6 +98,10 @@ public partial class TeamController(
         [FromServices] AppDbContext db)
     {
         var user = await userManager.GetUserAsync(User);
+
+        if (!MayCreateTeam(accountPolicy.Value, user!))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new RequestResponse("Player-created teams are disabled. Use the team invitation issued by an administrator."));
 
         var teams = await teamRepository.GetUserTeams(user!, token);
 

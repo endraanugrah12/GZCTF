@@ -49,6 +49,7 @@ export const useConfig = () => {
       extensionDuration: 120,
       renewalWindow: 10,
       enableBrowserFingerprint: false,
+      allowPlayerTeamCreation: true,
     },
   })
 

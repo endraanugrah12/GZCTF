@@ -64,6 +64,16 @@ public class TeamInvitationsController(
         return Ok(new { items = rows.Select(View), total = await db.TeamInvitations.CountAsync(ct) });
     }
 
+    [HttpGet("active")]
+    public async Task<IActionResult> Active(CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var rows = await db.TeamInvitations.AsNoTracking()
+            .Where(i => i.RedeemedAt == null && i.RevokedAt == null && i.ExpiresAt > now)
+            .OrderBy(i => i.TeamName).ThenBy(i => i.Email).ToListAsync(ct);
+        return Ok(rows.Select(View));
+    }
+
     [HttpPost("import")]
     public async Task<IActionResult> Import(TeamInvitationImport request, CancellationToken ct)
     {
@@ -96,7 +106,7 @@ public class TeamInvitationsController(
         db.TeamInvitations.AddRange(invitations);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return Conflict(new RequestResponse("Email or team was reserved concurrently. Reload and try again.")); }
-        return Ok(new { created = invitations.Count });
+        return Ok(new { created = invitations.Count, invitations = invitations.Select(View) });
     }
 
     [HttpPost("{id:guid}/regenerate")]

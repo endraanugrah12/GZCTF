@@ -40,6 +40,13 @@ public class AccountPolicy
     public bool AllowRegister { get; set; } = true;
 
     /// <summary>
+    /// Allow ordinary users to create teams. Administrators and the explicit
+    /// team-leader invitation redemption flow are not affected.
+    /// </summary>
+    [CacheFlush(CacheKey.ClientConfig)]
+    public bool AllowPlayerTeamCreation { get; set; } = true;
+
+    /// <summary>
     /// Activate account upon registration
     /// </summary>
     public bool ActiveOnRegister { get; set; } = true;
@@ -537,6 +544,9 @@ public partial class ClientConfig
     /// </summary>
     public bool EnableBrowserFingerprint { get; set; }
 
+    /// <summary>Whether ordinary players may create teams.</summary>
+    public bool AllowPlayerTeamCreation { get; set; } = true;
+
     /// <summary>
     /// Whether Google OAuth sign-in is configured and available
     /// </summary>
@@ -578,6 +588,7 @@ public partial class ClientConfig
             ExtensionDuration = containerPolicy.ExtensionDuration,
             RenewalWindow = containerPolicy.RenewalWindow,
             EnableBrowserFingerprint = accountPolicy.EnableBrowserFingerprint,
+            AllowPlayerTeamCreation = accountPolicy.AllowPlayerTeamCreation,
             EnableGoogleAuth = oauthConfig.GoogleEnabled,
             EnableDiscordAuth = oauthConfig.DiscordEnabled
         };

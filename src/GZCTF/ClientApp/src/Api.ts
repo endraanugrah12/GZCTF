@@ -635,6 +635,8 @@ export interface BuildRegistryConfig {
 export interface AccountPolicy {
   /** Allow user registration */
   allowRegister?: boolean;
+  /** Allow ordinary users to create teams */
+  allowPlayerTeamCreation?: boolean;
   /** Activate account upon registration */
   activeOnRegister?: boolean;
   /** Use captcha verification */
@@ -3334,6 +3336,8 @@ export interface ClientConfig {
   renewalWindow?: number;
   /** Enable browser fingerprinting in Login/Register */
   enableBrowserFingerprint?: boolean;
+  /** Whether ordinary players may create teams */
+  allowPlayerTeamCreation?: boolean;
   /** Whether Google OAuth sign-in is configured and available */
   enableGoogleAuth?: boolean;
   /** Whether Discord OAuth sign-in is configured and available */

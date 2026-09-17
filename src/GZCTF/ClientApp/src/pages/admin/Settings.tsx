@@ -547,6 +547,20 @@ const Configs: FC = () => {
               }
             />
             <Switch
+              checked={accountPolicy?.allowPlayerTeamCreation ?? true}
+              disabled={disabled}
+              label={SwitchLabel(
+                t('admin.content.settings.account.allow_player_team_creation.label'),
+                t('admin.content.settings.account.allow_player_team_creation.description')
+              )}
+              onChange={(e) =>
+                setAccountPolicy({
+                  ...accountPolicy,
+                  allowPlayerTeamCreation: e.currentTarget.checked,
+                })
+              }
+            />
+            <Switch
               checked={accountPolicy?.emailConfirmationRequired ?? false}
               disabled={disabled}
               label={SwitchLabel(

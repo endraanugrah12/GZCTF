@@ -15,8 +15,8 @@ import { showNotification } from '@mantine/notifications'
 import { mdiAccountMultiplePlus, mdiCheck, mdiClose, mdiHumanGreetingVariant } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { LogoHeader } from '@Components/LogoHeader'
 import { TeamCard } from '@Components/TeamCard'
 import { TeamCreateModal } from '@Components/TeamCreateModal'
@@ -25,6 +25,7 @@ import { WithNavBar } from '@Components/WithNavbar'
 import { WithRole } from '@Components/WithRole'
 import { showErrorMsg } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
+import { useConfig } from '@Hooks/useConfig'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import { useTeams, useUser } from '@Hooks/useUser'
 import api, { Role, TeamInfoModel } from '@Api'
@@ -32,6 +33,7 @@ import api, { Role, TeamInfoModel } from '@Api'
 const Teams: FC = () => {
   const { user, error: userError, mutate: mutateUser } = useUser()
   const { teams, mutate: mutateTeams, error: teamsError } = useTeams()
+  const { config } = useConfig()
 
   const theme = useMantineTheme()
 
@@ -57,6 +59,7 @@ const Teams: FC = () => {
 
   const teamsOwned = teams?.filter((t) => t.members?.some((m) => m?.captain && m.id === user?.userId))
   const disallowCreate = (teamsOwned?.length ?? 0) >= 3
+  const playerCreationAllowed = (config.allowPlayerTeamCreation ?? true) || (user?.role ?? Role.User) >= Role.Admin
 
   const isMobile = useIsMobile()
 
@@ -110,13 +113,15 @@ const Teams: FC = () => {
       >
         {t('team.button.join')}
       </Button>
-      <Button
-        leftSection={<Icon path={mdiAccountMultiplePlus} size={1} />}
-        variant="filled"
-        onClick={() => setCreateOpened(true)}
-      >
-        {t('team.button.create')}
-      </Button>
+      {playerCreationAllowed && (
+        <Button
+          leftSection={<Icon path={mdiAccountMultiplePlus} size={1} />}
+          variant="filled"
+          onClick={() => setCreateOpened(true)}
+        >
+          {t('team.button.create')}
+        </Button>
+      )}
     </>
   )
 
@@ -142,7 +147,10 @@ const Teams: FC = () => {
                   {t('team.content.load_failed.title', 'Failed to load teams')}
                 </Title>
                 <Text size="sm" c="dimmed" ta="center" style={{ wordBreak: 'break-word', hyphens: 'auto' }}>
-                  {t('team.content.load_failed.hint', 'Something went wrong while loading your teams. Please try again.')}
+                  {t(
+                    'team.content.load_failed.hint',
+                    'Something went wrong while loading your teams. Please try again.'
+                  )}
                 </Text>
                 <Button
                   variant="outline"
@@ -207,7 +215,7 @@ const Teams: FC = () => {
         <TeamCreateModal
           opened={createOpened}
           title={t('team.button.create')}
-          disallowCreate={disallowCreate ?? false}
+          disallowCreate={!playerCreationAllowed || (disallowCreate ?? false)}
           onClose={() => setCreateOpened(false)}
           mutate={mutateTeams}
         />
