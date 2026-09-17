@@ -43,7 +43,7 @@ public partial class AccountController
         if (userManager.NormalizeEmail(model.Email) != invitation.NormalizedEmail
             || await userManager.FindByEmailAsync(invitation.Email) is not null)
             return BadRequest(new RequestResponse("This invitation cannot create an account for that email."));
-        if (await db.Teams.AnyAsync(t => t.Name.ToUpper() == invitation.NormalizedTeamName, ct))
+        if (await db.Teams.AnyAsync(t => t.Name == invitation.TeamName, ct))
             return Conflict(new RequestResponse("The reserved team name is now in use. Contact an administrator."));
         var password = configService.DecryptApiData(model.Password);
         if (string.IsNullOrWhiteSpace(password))

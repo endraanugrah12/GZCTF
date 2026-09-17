@@ -14,6 +14,7 @@ public class TeamInvitation
     [MaxLength(254)] public string Email { get; set; } = "";
     [MaxLength(254)] public string NormalizedEmail { get; set; } = "";
     [MaxLength(Limits.MaxTeamNameLength)] public string TeamName { get; set; } = "";
+    // Legacy column name: the reservation key now preserves case (trim only).
     [MaxLength(Limits.MaxTeamNameLength)] public string NormalizedTeamName { get; set; } = "";
     [MaxLength(64)] public string TokenHash { get; set; } = "";
     public string ProtectedToken { get; set; } = "";

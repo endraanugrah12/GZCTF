@@ -115,7 +115,7 @@ public partial class TeamController(
         if (model.Name is null)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_CreationFailed)]));
 
-        var normalizedName = model.Name.Trim().ToUpperInvariant();
+        var normalizedName = model.Name.Trim();
         if (await db.TeamInvitations.AnyAsync(i => i.RedeemedAt == null && i.NormalizedTeamName == normalizedName, token))
             return Conflict(new RequestResponse("This team name is reserved for an invited leader."));
 
@@ -164,7 +164,7 @@ public partial class TeamController(
         var oldName = team.Name;
         if (!string.IsNullOrWhiteSpace(model.Name))
         {
-            var normalizedName = model.Name.Trim().ToUpperInvariant();
+            var normalizedName = model.Name.Trim();
             if (await db.TeamInvitations.AnyAsync(i => i.RedeemedAt == null && i.NormalizedTeamName == normalizedName, token))
                 return Conflict(new RequestResponse("This team name is reserved for an invited leader."));
         }

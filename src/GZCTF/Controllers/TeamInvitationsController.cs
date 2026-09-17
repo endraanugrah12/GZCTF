@@ -86,12 +86,12 @@ public class TeamInvitationsController(
             var email = row.Email.Trim();
             var name = row.TeamName.Trim();
             var normalizedEmail = users.NormalizeEmail(email);
-            var normalizedName = name.ToUpperInvariant();
+            var normalizedName = name;
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrEmpty(normalizedEmail)
                 || !emails.Add(normalizedEmail) || !names.Add(normalizedName))
                 return BadRequest(new RequestResponse("Each row must have a distinct email and non-empty team_name."));
             if (await users.FindByEmailAsync(email) is not null
-                || await db.Teams.AnyAsync(t => t.Name.ToUpper() == normalizedName, ct)
+                || await db.Teams.AnyAsync(t => t.Name == normalizedName, ct)
                 || await db.TeamInvitations.AnyAsync(i => i.NormalizedEmail == normalizedEmail
                     || i.NormalizedTeamName == normalizedName, ct))
                 return Conflict(new RequestResponse($"Email or team already exists/reserved: {email}, {name}. Use the existing invitation's Regenerate button instead."));

@@ -285,6 +285,46 @@ public class TeamInvitationDatabaseTests
     }
 
     [InvitationDatabaseFact]
+    public async Task CaseSensitiveNames_MigrateExistingReservation_ImportAndRedeemVariants()
+    {
+        await using var fixture = await Fixture.Create();
+        await fixture.Invite(); // Existing uppercase reservation key from the old release.
+        using var scope = fixture.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var commands = db.GetService<IMigrationsSqlGenerator>().Generate(
+            new GZCTF.Migrations.CaseSensitiveInvitationTeamNames().UpOperations, db.Model);
+        foreach (var command in commands)
+            await db.Database.ExecuteSqlRawAsync(command.CommandText);
+        Assert.Equal("Team Alpha", (await db.TeamInvitations.SingleAsync()).NormalizedTeamName);
+        var controller = new TeamInvitationsController(db,
+            scope.ServiceProvider.GetRequiredService<UserManager<UserInfo>>(),
+            fixture.Services.GetRequiredService<IDataProtectionProvider>());
+        Assert.IsType<OkObjectResult>(await controller.Import(new TeamInvitationImport {
+            Rows = [new() { Email = "second@example.com", TeamName = "team alpha" },
+                    new() { Email = "third@example.com", TeamName = "TEAM ALPHA" }]
+        }, default));
+        Assert.IsType<ConflictObjectResult>(await controller.Import(new TeamInvitationImport {
+            Rows = [new() { Email = "fourth@example.com", TeamName = "Team Alpha" }]
+        }, default));
+        Assert.IsType<ConflictObjectResult>(await controller.Import(new TeamInvitationImport {
+            Rows = [new() { Email = "SECOND@example.com", TeamName = "Different" }]
+        }, default));
+        var invitations = await db.TeamInvitations.OrderBy(i => i.Email).ToListAsync();
+        var protector = fixture.Services.GetRequiredService<IDataProtectionProvider>()
+            .CreateProtector(TeamInvitationTokens.ProtectionPurpose);
+        foreach (var invitation in invitations)
+        {
+            var account = Account(scope.ServiceProvider);
+            Assert.IsType<OkObjectResult>(await account.RedeemInvitation(new TeamInvitationRegisterModel {
+                Token = protector.Unprotect(invitation.ProtectedToken), Email = invitation.Email,
+                UserName = "leader" + invitation.Id.ToString("N"), Password = "Chosen.Pass123!"
+            }, db, default));
+        }
+        Assert.Equal(3, await db.Teams.CountAsync());
+        Assert.Equal(3, await db.Users.CountAsync());
+    }
+
+    [InvitationDatabaseFact]
     public async Task RevokeAndRegenerate_InvalidatePreviouslyLoadedClaim()
     {
         await using var fixture = await Fixture.Create();

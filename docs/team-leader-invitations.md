@@ -15,6 +15,9 @@ Open **Admin → Users → CSV / Invitations**.
 
 3. Click **Create invitations**. Duplicate emails/team names or existing accounts
    and teams reject the entire import; no partial batch is created.
+   Team names are case-sensitive: `Team Alpha`, `team alpha`, and `TEAM ALPHA`
+   are separate teams. Leading/trailing whitespace is ignored. Email addresses
+   remain case-insensitive, so each leader must have a distinct email address.
 4. Use **Copy link** for each row and securely send it to that leader.
    The platform does not automatically send invitation emails.
    **Download new batch CSV** exports the most recent import, while **Download
@@ -59,6 +62,12 @@ Deployment includes migration **20260916010000_TeamLeaderInvitations**, adding o
 table and indexes. Back up the database before upgrading. No existing accounts,
 credentials or teams are modified. The old credential-import API is retained
 for compatibility, but the Admin Users CSV interface uses invitations only.
+
+Migration **20260917010000_CaseSensitiveInvitationTeamNames** updates existing
+invitation reservation keys to preserve the original team-name capitalization.
+Existing invitation links remain valid. Downgrading requires resolving any
+case-only team-name collisions first; the database will reject those collisions
+instead of merging or deleting invitations.
 
 To prevent ordinary players from creating unrelated teams, disable **Admin →
 Settings → Users → Allow players to create teams**. This hides the player

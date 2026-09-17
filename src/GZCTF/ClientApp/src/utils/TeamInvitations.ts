@@ -66,10 +66,10 @@ export function parseInvitationCsv(input: string): InvitationRow[] {
       teamName.length > 255
     )
       throw new Error(`Row ${i + 2}: provide a valid email and team_name.`)
-    if (emails.has(email.toUpperCase()) || names.has(teamName.toUpperCase()))
+    if (emails.has(email.toUpperCase()) || names.has(teamName))
       throw new Error(`Row ${i + 2}: duplicate email or team_name.`)
     emails.add(email.toUpperCase())
-    names.add(teamName.toUpperCase())
+    names.add(teamName)
     return { email, teamName }
   })
 }

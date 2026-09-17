@@ -26,9 +26,10 @@ test('CSV rejects credential columns, missing data and invalid email', () => {
   ])
     assert.throws(() => parseInvitationCsv(csv))
 })
-test('CSV rejects duplicate emails and teams ignoring case', () => {
+test('CSV rejects case-insensitive duplicate emails and exact duplicate teams', () => {
   assert.throws(() => parseInvitationCsv('email,team_name\na@b.com,One\nA@B.COM,Two'))
-  assert.throws(() => parseInvitationCsv('email,team_name\na@b.com,One\nb@b.com,one'))
+  assert.throws(() => parseInvitationCsv('email,team_name\na@b.com,One\nb@b.com,One'))
+  assert.equal(parseInvitationCsv('email,team_name\na@b.com,One\nb@b.com,one\nc@b.com,ONE').length, 3)
 })
 test('CSV rejects malformed quotes and excessive row counts', () => {
   assert.throws(() => parseInvitationCsv('email,team_name\na@b.com,"Team'))
