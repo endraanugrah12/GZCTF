@@ -5,7 +5,7 @@ export interface InvitationRow {
 
 export interface ExportableInvitation extends InvitationRow {
   token: string
-  expiresAt: string
+  expiresAt: number | string
 }
 
 /** Strict two-column CSV with quoted fields, CRLF, BOM and embedded newlines. */
@@ -90,7 +90,10 @@ export function invitationExportCsv(rows: ExportableInvitation[], origin = windo
   return [
     'email,team_name,invitation_link,expires_at',
     ...rows.map((row) =>
-      [row.email, row.teamName, invitationLink(row.token, origin), row.expiresAt].map(csvCell).join(',')
+      // The API's DateTimeOffset converter writes Unix milliseconds, not strings.
+      [row.email, row.teamName, invitationLink(row.token, origin), new Date(row.expiresAt).toISOString()]
+        .map(csvCell)
+        .join(',')
     ),
   ].join('\n')
 }

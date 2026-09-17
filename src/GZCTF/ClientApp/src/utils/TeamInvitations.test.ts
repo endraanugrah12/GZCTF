@@ -46,16 +46,33 @@ test('export contains leader email, team, matching link and expiration', () => {
   assert.equal(
     csv,
     'email,team_name,invitation_link,expires_at\n' +
-      '"leader@example.com","Team, ""A""","https://ctf.example.com/account/register#invitation=abc_123","2026-10-01T00:00:00Z"'
+      '"leader@example.com","Team, ""A""","https://ctf.example.com/account/register#invitation=abc_123","2026-10-01T00:00:00.000Z"'
   )
 })
 
 test('export neutralizes spreadsheet formulas', () => {
   const csv = invitationExportCsv(
-    [{ email: '=cmd@example.com', teamName: '+malicious', token: 'token', expiresAt: '-1' }],
+    [{ email: '=cmd@example.com', teamName: '+malicious', token: 'token', expiresAt: 0 }],
     'https://ctf.example.com'
   )
   assert.match(csv, /"'=cmd@example.com"/)
   assert.match(csv, /"'\+malicious"/)
-  assert.match(csv, /"'-1"/)
+  assert.match(csv, /"1970-01-01T00:00:00.000Z"/)
+})
+
+test('batch export handles API Unix-millisecond dates and preserves each matching link', () => {
+  const rows = JSON.parse(
+    JSON.stringify([
+      { email: 'one@example.com', teamName: 'One', token: 'token-one', expiresAt: Date.parse('2026-10-01T00:00:00Z') },
+      { email: 'two@example.com', teamName: 'Two', token: 'token-two', expiresAt: Date.parse('2026-10-02T00:00:00Z') },
+    ])
+  )
+  assert.equal(
+    invitationExportCsv(rows, 'https://ctf.example.com'),
+    [
+      'email,team_name,invitation_link,expires_at',
+      '"one@example.com","One","https://ctf.example.com/account/register#invitation=token-one","2026-10-01T00:00:00.000Z"',
+      '"two@example.com","Two","https://ctf.example.com/account/register#invitation=token-two","2026-10-02T00:00:00.000Z"',
+    ].join('\n')
+  )
 })

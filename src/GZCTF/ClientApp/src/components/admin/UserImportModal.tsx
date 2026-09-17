@@ -28,7 +28,7 @@ interface Invitation {
   id: string
   email: string
   teamName: string
-  expiresAt: string
+  expiresAt: number
   status: 'pending' | 'redeemed' | 'expired' | 'revoked'
   token: string | null
 }

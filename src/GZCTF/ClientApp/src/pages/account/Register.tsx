@@ -26,12 +26,12 @@ const Register: FC = () => {
   const [email, setEmail] = useInputState('')
   const [disabled, setDisabled] = useState(false)
   const [invitationToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('invitation'))
-  const [invitation, setInvitation] = useState<{ email: string; teamName: string; expiresAt: string } | null>(null)
+  const [invitation, setInvitation] = useState<{ email: string; teamName: string; expiresAt: number } | null>(null)
   const [invitationError, setInvitationError] = useState('')
   useEffect(() => {
     if (!invitationToken) return
     let active = true
-    void invitationRequest<{ email: string; teamName: string; expiresAt: string }>(
+    void invitationRequest<{ email: string; teamName: string; expiresAt: number }>(
       '/api/account/PreviewInvitation', 'POST', { token: invitationToken }
     ).then((data) => {
       if (active) { setInvitation(data); setEmail(data.email) }
