@@ -9,8 +9,11 @@ namespace GZCTF.Models.Data;
 public class Submission
 {
     [Key]
-    [JsonIgnore]
     public int Id { get; set; }
+
+    /// <summary>Admin deletion tombstone. Evidence remains consumed and available for audit.</summary>
+    [JsonIgnore]
+    public DateTimeOffset? DeletedAtUtc { get; set; }
 
     /// <summary>
     /// Submitted answer string

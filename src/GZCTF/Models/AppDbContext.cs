@@ -438,6 +438,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
 
         builder.Entity<Submission>(entity =>
         {
+            entity.HasQueryFilter(s => s.DeletedAtUtc == null);
             entity.Property(e => e.Status).HasConversion<string>();
 
             // Serves the "recent submissions for a game, newest first" queries

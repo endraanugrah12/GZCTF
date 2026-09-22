@@ -37,7 +37,7 @@ public sealed class InvitationDatabaseFactAttribute : FactAttribute
 
 public class TeamInvitationDatabaseTests
 {
-    private sealed class Fixture : IAsyncDisposable
+    internal sealed class Fixture : IAsyncDisposable
     {
         public required ServiceProvider Services { get; init; }
         public required string Connection { get; init; }

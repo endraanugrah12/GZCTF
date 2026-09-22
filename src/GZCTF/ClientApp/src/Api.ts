@@ -2788,6 +2788,7 @@ export interface FormattableDataOfEventType {
 }
 
 export interface Submission {
+  id?: number;
   /**
    * Submitted answer string
    * @maxLength 127

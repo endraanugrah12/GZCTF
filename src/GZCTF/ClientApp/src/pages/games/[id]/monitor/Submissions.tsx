@@ -14,8 +14,8 @@ import {
   useMantineTheme,
 } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
+import { modals } from '@mantine/modals'
 import { showNotification } from '@mantine/notifications'
-import { ScrollingText } from '@Components/ScrollingText'
 import {
   mdiArrowLeftBold,
   mdiArrowRightBold,
@@ -28,6 +28,7 @@ import {
   mdiFlag,
   mdiMagnify,
   mdiReplay,
+  mdiDeleteOutline,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import * as signalR from '@microsoft/signalr'
@@ -36,12 +37,14 @@ import dayjs from 'dayjs'
 import { FC, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
+import { ScrollingText } from '@Components/ScrollingText'
 import { WithGameMonitor } from '@Components/WithGameMonitor'
 import { downloadBlob, handleAxiosError } from '@Utils/ApiHelper'
 import { useLanguage } from '@Utils/I18n'
 import { useDisplayInputStyles } from '@Utils/ThemeOverride'
 import { useGame } from '@Hooks/useGame'
-import api, { AnswerResult, Submission } from '@Api'
+import { useUser } from '@Hooks/useUser'
+import api, { AnswerResult, Role, Submission } from '@Api'
 import tableClasses from '@Styles/Table.module.css'
 
 const ITEM_COUNT_PER_PAGE = 50
@@ -81,6 +84,10 @@ const Submissions: FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>()
   const [type, setType] = useState<AnswerResult | 'All'>('All')
   const [disabled, setDisabled] = useState(false)
+  const [deleting, setDeleting] = useState<number | null>(null)
+  const [revision, setRevision] = useState(0)
+  const { user } = useUser()
+  const canDelete = user?.role === Role.Admin
 
   const { game } = useGame(numId)
 
@@ -121,7 +128,7 @@ const Submissions: FC = () => {
     if (activePage === 1) {
       newSubmissions.current = []
     }
-  }, [activePage, type, debouncedSearch, numId, t])
+  }, [activePage, type, debouncedSearch, numId, t, revision])
 
   useEffect(() => {
     if (game?.end && new Date() < new Date(game.end)) {
@@ -165,6 +172,39 @@ const Submissions: FC = () => {
 
   const filteredSubs = newSubmissions.current.filter((item) => type === 'All' || item.status === type)
 
+  const confirmDelete = (item: Submission) =>
+    modals.openConfirmModal({
+      title: 'Delete flag submission?',
+      children: (
+        <Text size="sm">
+          Delete the submission by {item.user} for {item.team} on {item.challenge}? Scores, ranks and blood bonuses will
+          be recalculated. Another accepted submission may keep the team solved. The original record and evidence are
+          retained for audit. This action cannot be undone here.
+        </Text>
+      ),
+      labels: { confirm: 'Delete submission', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        if (item.id == null) return
+        setDeleting(item.id)
+        try {
+          await api.instance.delete(`/api/edit/Games/${numId}/Submissions/${item.id}`)
+          newSubmissions.current = newSubmissions.current.filter((s) => s.id !== item.id)
+          setSubmissions((current) => current?.filter((s) => s.id !== item.id))
+          setRevision((value) => value + 1)
+          showNotification({ color: 'teal', message: 'Submission deleted. The scoreboard is being refreshed.' })
+        } catch (error) {
+          showNotification({
+            color: 'red',
+            title: 'Could not delete submission',
+            message: await handleAxiosError(error),
+          })
+        } finally {
+          setDeleting(null)
+        }
+      },
+    })
+
   const rows = [...(activePage === 1 ? filteredSubs : []), ...(submissions ?? [])].map((item, i) => (
     <Table.Tr
       key={`${item.time}@${i}`}
@@ -188,6 +228,22 @@ const Submissions: FC = () => {
       <Table.Td w="36vw" maw="100%" p="0">
         <Input variant="unstyled" value={item.answer} readOnly size="sm" classNames={inputClasses} />
       </Table.Td>
+      {canDelete && (
+        <Table.Td>
+          <Tooltip label="Delete submission and update scoreboard">
+            <ActionIcon
+              color="red"
+              variant="subtle"
+              aria-label="Delete submission"
+              loading={deleting === item.id}
+              disabled={deleting !== null || item.id == null || item.status === AnswerResult.FlagSubmitted}
+              onClick={() => confirmDelete(item)}
+            >
+              <Icon path={mdiDeleteOutline} size={0.9} />
+            </ActionIcon>
+          </Tooltip>
+        </Table.Td>
+      )}
     </Table.Tr>
   ))
 
@@ -269,6 +325,7 @@ const Submissions: FC = () => {
                 <Table.Th miw="4.5rem">{t('common.label.user')}</Table.Th>
                 <Table.Th miw="3rem">{t('common.label.challenge')}</Table.Th>
                 <Table.Th ff="monospace">{t('common.label.flag')}</Table.Th>
+                {canDelete && <Table.Th>Actions</Table.Th>}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>{rows}</Table.Tbody>
