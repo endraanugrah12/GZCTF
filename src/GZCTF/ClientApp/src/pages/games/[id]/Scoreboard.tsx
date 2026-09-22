@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { AdScoreboardTable } from '@Components/AdScoreboardTable'
 import { KothScoreboardTable } from '@Components/KothScoreboardTable'
+import { ScoreboardExport } from '@Components/ScoreboardExport'
 import { ScoreboardTable } from '@Components/ScoreboardTable'
 import { TeamRank } from '@Components/TeamRank'
 import { WithGameTab } from '@Components/WithGameTab'
@@ -205,6 +206,7 @@ const Scoreboard: FC = () => {
       {isMobile ? (
         <Stack pt="md">
           {freezeBanner}
+            {showJeopardy && <ScoreboardExport gameId={numId} />}
           {teamInfo && !error && <TeamRank />}
           {tabNavbar}
           {showAd ? (
@@ -227,6 +229,7 @@ const Scoreboard: FC = () => {
         <WithGameTab>
           <Stack pb="2rem">
             {freezeBanner}
+            {showJeopardy && <ScoreboardExport gameId={numId} />}
             {tabNavbar}
             {showAd ? (
               <>

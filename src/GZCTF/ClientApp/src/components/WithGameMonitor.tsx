@@ -1,15 +1,15 @@
-import { Button, Group, LoadingOverlay, Stack, Tabs } from '@mantine/core'
-import { mdiExclamationThick, mdiFileDocumentCheckOutline, mdiFlag, mdiLightningBolt, mdiPackageVariant, mdiTableArrowDown, mdiGhost } from '@mdi/js'
+import { Group, LoadingOverlay, Stack, Tabs } from '@mantine/core'
+import { mdiExclamationThick, mdiFileDocumentCheckOutline, mdiFlag, mdiLightningBolt, mdiPackageVariant, mdiGhost } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
+import { ScoreboardExport } from '@Components/ScoreboardExport'
 import { WithGameTab } from '@Components/WithGameTab'
 import { WithNavBar } from '@Components/WithNavbar'
 import { WithRole } from '@Components/WithRole'
-import { downloadBlob } from '@Utils/ApiHelper'
 import { DEFAULT_LOADING_OVERLAY } from '@Utils/Shared'
-import api, { Role } from '@Api'
+import { Role } from '@Api'
 import misc from '@Styles/Misc.module.css'
 
 interface WithGameMonitorProps extends React.PropsWithChildren {
@@ -35,7 +35,6 @@ export const WithGameMonitor: FC<WithGameMonitorProps> = ({ children, isLoading 
   const getTab = (path: string) => pages.find((page) => path.endsWith(page.path))
 
   const [activeTab, setActiveTab] = useState(getTab(location.pathname)?.path ?? pages[0].path)
-  const [disabled, setDisabled] = useState(false)
 
   useEffect(() => {
     const tab = getTab(location.pathname)
@@ -46,13 +45,6 @@ export const WithGameMonitor: FC<WithGameMonitorProps> = ({ children, isLoading 
     }
   }, [location])
 
-  const onDownloadScoreboardSheet = () =>
-    downloadBlob(
-      api.game.gameScoreboardSheet(numId, { format: 'blob' }),
-      setDisabled,
-      t,
-      `Scoreboard_${numId}_${Date.now()}.xlsx`
-    )
 
   return (
     <WithNavBar width="90%">
@@ -60,15 +52,7 @@ export const WithGameMonitor: FC<WithGameMonitorProps> = ({ children, isLoading 
         <WithGameTab>
           <Group justify="space-between" align="flex-start">
             <Stack>
-              <Button
-                disabled={disabled}
-                w="10rem"
-                classNames={{ inner: misc.justifyBetween }}
-                leftSection={<Icon path={mdiTableArrowDown} size={1} />}
-                onClick={onDownloadScoreboardSheet}
-              >
-                {t('game.button.download.scoreboard')}
-              </Button>
+              <ScoreboardExport gameId={numId} />
               <Tabs
                 orientation="vertical"
                 value={activeTab}

@@ -48,10 +48,10 @@ public class ExcelHelper(IStringLocalizer<Program> localizer)
 
     public MemoryStream GetScoreboardExcel(ScoreboardModel scoreboard)
     {
-        if (scoreboard.Items.Values.FirstOrDefault()?.TeamInfo is null)
+        if (scoreboard.Items.Values.Any(item => item.TeamInfo is null))
             throw new ArgumentException(localizer[nameof(Resources.Program.Scoreboard_TeamNotLoaded)]);
 
-        var workbook = new XSSFWorkbook();
+        using var workbook = new XSSFWorkbook();
         var boardSheet = workbook.CreateSheet(localizer[nameof(Resources.Program.Scoreboard_Title)]);
         var headerStyle = GetHeaderStyle(workbook);
         var challIds = WriteBoardHeader(boardSheet, headerStyle, scoreboard);
@@ -60,6 +60,42 @@ public class ExcelHelper(IStringLocalizer<Program> localizer)
         var stream = new MemoryStream();
         workbook.Write(stream, true);
         return stream;
+    }
+
+    public byte[] GetScoreboardCsv(ScoreboardModel scoreboard)
+    {
+        // Reuse the Excel layout so both formats always contain identical columns.
+        using var excel = GetScoreboardExcel(scoreboard);
+        excel.Position = 0;
+        using var workbook = new XSSFWorkbook(excel);
+        var sheet = workbook.GetSheetAt(0);
+        var csv = new System.Text.StringBuilder();
+        for (var rowIndex = 0; rowIndex <= sheet.LastRowNum; rowIndex++)
+        {
+            var row = sheet.GetRow(rowIndex);
+            var cells = new List<string>();
+            for (var col = 0; col < sheet.GetRow(0).LastCellNum; col++)
+            {
+                var cell = row?.GetCell(col);
+                // Our scoreboard cells are plain numbers/text. DataFormatter would
+                // unnecessarily require SkiaSharp for numeric formatting on the server.
+                var value = cell?.CellType switch
+                {
+                    CellType.Numeric => cell.NumericCellValue.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    CellType.String => cell.StringCellValue,
+                    _ => string.Empty
+                };
+                // CSV quoting alone does not prevent spreadsheet formula injection.
+                var trimmed = value.TrimStart();
+                if (cell?.CellType == CellType.String && trimmed.Length > 0 &&
+                    "=+-@".Contains(trimmed[0])) value = "'" + value;
+                cells.Add("\"" + value.Replace("\"", "\"\"") + "\"");
+            }
+            csv.AppendJoin(',', cells).Append("\r\n");
+        }
+        // BOM lets Excel recognize Unicode names when opening CSV files directly.
+        var encoding = new System.Text.UTF8Encoding(true);
+        return [.. encoding.GetPreamble(), .. encoding.GetBytes(csv.ToString())];
     }
 
     public MemoryStream GetSubmissionExcel(IEnumerable<Submission> submissions)
@@ -274,7 +310,7 @@ public class ExcelHelper(IStringLocalizer<Program> localizer)
         var rowIndex = 1;
         var withDiv = scoreboard.Divisions.Count > 0;
 
-        foreach (var item in scoreboard.Items.Values)
+        foreach (var item in scoreboard.Items.Values.OrderBy(i => i.Rank == 0 ? int.MaxValue : i.Rank).ThenBy(i => i.Name))
         {
             var colIndex = 0;
             var row = sheet.CreateRow(rowIndex);

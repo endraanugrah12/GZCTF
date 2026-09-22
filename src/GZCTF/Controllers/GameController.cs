@@ -1267,8 +1267,10 @@ public class GameController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
     [SuppressMessage("ReSharper", "StringLiteralTypo")]
     public async Task<IActionResult> ScoreboardSheet([FromRoute] int id, [FromServices] ExcelHelper excelHelper,
-        CancellationToken token = default)
+        CancellationToken token = default, [FromQuery] string format = "xlsx")
     {
+        if (format != "xlsx" && format != "csv")
+            return BadRequest(new RequestResponse("Choose xlsx or csv."));
         var game = await gameRepository.GetGameById(id, token);
 
         if (game is null)
@@ -1280,6 +1282,9 @@ public class GameController(
         try
         {
             var scoreboard = await gameRepository.GetScoreboardWithMembers(game, token);
+            if (format == "csv")
+                return File(excelHelper.GetScoreboardCsv(scoreboard), "text/csv; charset=utf-8",
+                    $"{game.Title}-Scoreboard-{DateTimeOffset.UtcNow:yyyyMMdd-HH.mm.ssZ}.csv");
             var stream = excelHelper.GetScoreboardExcel(scoreboard);
             stream.Seek(0, SeekOrigin.Begin);
 
