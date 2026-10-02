@@ -569,7 +569,7 @@ const GameChallengeEdit: FC = () => {
                     />
                     <NumberInput
                       label={challengeInfo?.scoreCurve === ScoreCurve.CTFd ? 'Decay (solves to minimum)' : t('admin.content.games.challenges.difficulty')}
-                      description={challengeInfo?.scoreCurve === ScoreCurve.CTFd ? 'Example: 50 means the minimum score is reached at 50 solves.' : undefined}
+                      description={challengeInfo?.scoreCurve === ScoreCurve.CTFd ? 'The first solve keeps full value. Decay 50 reaches the minimum at 51 total solves; decay 10 at 11.' : undefined}
                       decimalScale={2}
                       fixedDecimalScale
                       step={0.2}

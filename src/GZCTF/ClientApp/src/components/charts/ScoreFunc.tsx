@@ -29,7 +29,7 @@ export const ScoreFunc: FC<ScoreFuncProps> = ({
         Math.max(
           originalScore * minScoreRate,
           originalScore +
-            (originalScore * minScoreRate - originalScore) * (Math.max(0, x) / Math.max(1, difficulty)) ** 2
+            (originalScore * minScoreRate - originalScore) * (Math.max(0, x - 1) / Math.max(1, difficulty)) ** 2
         )
       )
     if (x <= 1) return originalScore

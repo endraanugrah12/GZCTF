@@ -74,7 +74,8 @@ public class GameChallenge : Challenge
         if (curve == ScoreCurve.CTFd)
         {
             var minimum = originalScore * minScoreRate;
-            var count = Math.Max(0, acceptedCount);
+            // CTFd excludes the first solve from decay so it always receives full value.
+            var count = Math.Max(0, acceptedCount - 1);
             var decay = Math.Max(1, difficulty);
             return (int)Math.Ceiling(Math.Max(minimum,
                 originalScore + (minimum - originalScore) * Math.Pow(count / decay, 2)));

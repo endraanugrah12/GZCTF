@@ -11,9 +11,13 @@
   while open and rechecks on submission. When disabled, it neither requires nor
   uploads LLM links/solver files. When enabled, the backend still enforces evidence.
 - New challenges use **CTFd (parabolic)** scoring: 500 initial, 100 minimum,
-  decay 50. The formula is `ceil(max(minimum, initial + (minimum-initial)*(solves/decay)^2))`.
-  At 5/10/25/50 solves the values are 496/484/400/100. This follows
-  [CTFd's documented dynamic-value formula](https://docs.ctfd.io/docs/custom-challenges/dynamic-value/).
+  decay 50. Set `n = max(0, solves - 1)` and calculate
+  `ceil(max(minimum, initial + (minimum-initial)*(n/decay)^2))`.
+  The first solve always keeps the initial value. At 5/10/25/50/51 solves,
+  decay 50 gives 498/488/408/116/100. With decay 10 the first three solve counts
+  give 500/496/484, reaching 100 at 11 total solves. This matches
+  [CTFd's implementation, including its first-solve offset](https://github.com/CTFd/CTFd/blob/master/CTFd/plugins/dynamic_challenges/decay.py).
+  All previous solvers share the updated challenge value; blood bonuses are separate.
 
 Existing challenge curves and scores are not silently migrated. To change an
 existing challenge, open its admin scoring form, select **CTFd (parabolic)**,
@@ -24,3 +28,6 @@ participants first. Standard, linear and logarithmic remain available.
 Challenge exports now preserve the curve explicitly for reimports. Legacy
 structured exports without a curve retain Standard scoring for compatibility.
 No database schema migration is required. Rebuild the application to deploy.
+
+The solve-count correction affects existing challenges already using CTFd scoring
+when their scoreboard is regenerated. Other curves and saved decay values are unchanged.

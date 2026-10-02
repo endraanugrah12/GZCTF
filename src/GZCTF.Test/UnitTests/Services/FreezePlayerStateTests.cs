@@ -45,13 +45,34 @@ public class FreezePlayerStateTests
     [Theory]
     [InlineData(0, 500)]
     [InlineData(1, 500)]
-    [InlineData(5, 496)]
-    [InlineData(10, 484)]
-    [InlineData(25, 400)]
-    [InlineData(50, 100)]
+    [InlineData(5, 498)]
+    [InlineData(10, 488)]
+    [InlineData(25, 408)]
+    [InlineData(50, 116)]
+    [InlineData(51, 100)]
     [InlineData(100, 100)]
     public void CtfdCurveMatchesDocumentedParabola(int count, int expected) =>
         Assert.Equal(expected, GameChallenge.CalculateChallengeScore(500, .2, 50, count, ScoreCurve.CTFd));
+
+    [Theory]
+    [InlineData(0, 500)]
+    [InlineData(1, 500)]
+    [InlineData(2, 496)]
+    [InlineData(3, 484)]
+    [InlineData(10, 176)]
+    [InlineData(11, 100)]
+    [InlineData(100, 100)]
+    public void CtfdDecayTenMatchesFirstSolveOffset(int count, int expected) =>
+        Assert.Equal(expected, GameChallenge.CalculateChallengeScore(500, .2, 10, count, ScoreCurve.CTFd));
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(5)]
+    [InlineData(10)]
+    [InlineData(50)]
+    public void CtfdFirstSolveAlwaysKeepsInitialValue(double decay) =>
+        Assert.Equal(500, GameChallenge.CalculateChallengeScore(500, .2, decay, 1, ScoreCurve.CTFd));
 
     [Fact]
     public void NewChallengesUseSlowCtfdDefaultsAndLegacyCurveStaysAvailable()
