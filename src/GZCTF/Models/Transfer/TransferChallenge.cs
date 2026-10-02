@@ -159,6 +159,7 @@ public class ScoringSection
     /// </summary>
     [Range(0.01, double.MaxValue, ErrorMessage = "Difficulty coefficient must be at least 0.01")]
     public double Difficulty { get; set; } = 5.0;
+    public ScoreCurve ScoreCurve { get; set; } = ScoreCurve.Standard;
 }
 
 public class LimitsSection

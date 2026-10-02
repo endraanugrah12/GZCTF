@@ -841,6 +841,7 @@ public sealed class ChallengeImportService(
         // or breaks the dynamic-score decay curve.
         c.MinScoreRate = Math.Clamp(m.MinScoreRate ?? c.MinScoreRate, 0.0, 1.0);
         c.Difficulty = Math.Max(0.01, m.Difficulty ?? c.Difficulty);
+        c.ScoreCurve = m.ScoreCurve ?? c.ScoreCurve;
         c.SubmissionLimit = m.SubmissionLimit ?? c.SubmissionLimit;
         c.DisableBloodBonus = m.DisableBloodBonus ?? c.DisableBloodBonus;
         c.FlagTemplate = m.Container?.FlagTemplate ?? m.FlagTemplate ?? c.FlagTemplate;

@@ -65,6 +65,7 @@ export enum NetworkMode {
 
 /** Dynamic-scoring decay curve shape */
 export enum ScoreCurve {
+  CTFd = "CTFd",
   Standard = "Standard",
   Linear = "Linear",
   Logarithmic = "Logarithmic",

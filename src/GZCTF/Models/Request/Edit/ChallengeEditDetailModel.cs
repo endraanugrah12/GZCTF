@@ -163,13 +163,13 @@ public class ChallengeEditDetailModel
     /// Difficulty coefficient
     /// </summary>
     [Required]
-    public double Difficulty { get; set; } = 3;
+    public double Difficulty { get; set; } = 50;
 
     /// <summary>
     /// Dynamic-scoring decay curve shape (Standard / Linear / Logarithmic).
     /// </summary>
     [Required]
-    public ScoreCurve ScoreCurve { get; set; } = ScoreCurve.Standard;
+    public ScoreCurve ScoreCurve { get; set; } = ScoreCurve.CTFd;
 
     #region Attack & Defense (per-challenge)
 

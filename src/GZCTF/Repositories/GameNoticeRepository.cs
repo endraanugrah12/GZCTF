@@ -22,8 +22,12 @@ public class GameNoticeRepository(
 
         await cacheHelper.RemoveAsync(CacheKey.GameNotice(notice.GameId), token);
 
-        if (broadcast)
-            await hub.Clients.Group($"Game_{notice.GameId}").ReceivedGameNotice(notice);
+        var game = await Context.Games.AsNoTracking().SingleAsync(g => g.Id == notice.GameId, token);
+        var now = DateTimeOffset.UtcNow;
+        var frozen = game.FreezeTimeUtc is { } freeze && now >= freeze && now < game.EndTimeUtc;
+        var isBlood = notice.Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood;
+        if (broadcast || (frozen && isBlood))
+            await hub.Clients.Group($"Game_{notice.GameId}").ReceivedGameNotice(frozen ? notice.AnonymizeBlood() : notice);
 
         // Freeze suppresses the public feed, but Discord can send an anonymized blood notice.
         var blood = notice.Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood;

@@ -65,7 +65,9 @@ public enum ScoreCurve : byte
 
     /// <summary>Gentle (concave) decay — holds most of its value for the early solves
     /// and only tapers toward the floor slowly. Rewards breadth over first-blood speed.</summary>
-    Logarithmic = 2
+    Logarithmic = 2,
+    /// <summary>CTFd parabolic decay; difficulty is the solve count at the minimum.</summary>
+    CTFd = 3
 }
 
 /// <summary>

@@ -568,7 +568,8 @@ const GameChallengeEdit: FC = () => {
                       }}
                     />
                     <NumberInput
-                      label={t('admin.content.games.challenges.difficulty')}
+                      label={challengeInfo?.scoreCurve === ScoreCurve.CTFd ? 'Decay (solves to minimum)' : t('admin.content.games.challenges.difficulty')}
+                      description={challengeInfo?.scoreCurve === ScoreCurve.CTFd ? 'Example: 50 means the minimum score is reached at 50 solves.' : undefined}
                       decimalScale={2}
                       fixedDecimalScale
                       step={0.2}
@@ -592,6 +593,7 @@ const GameChallengeEdit: FC = () => {
                     allowDeselect={false}
                     value={challengeInfo?.scoreCurve ?? ScoreCurve.Standard}
                     data={[
+                      { value: ScoreCurve.CTFd, label: 'CTFd (parabolic)' },
                       { value: ScoreCurve.Standard, label: t('admin.content.games.challenges.score_curve.standard') },
                       { value: ScoreCurve.Linear, label: t('admin.content.games.challenges.score_curve.linear') },
                       {

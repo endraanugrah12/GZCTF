@@ -201,6 +201,12 @@ public partial class TimeLine
 [MemoryPackable]
 public partial class ScoreboardItem
 {
+    internal ScoreboardItem WithOwnSolves(List<ChallengeItem> solves)
+    {
+        var copy = (ScoreboardItem)MemberwiseClone();
+        copy.SolvedChallenges = solves;
+        return copy;
+    }
     /// <summary>
     /// Team ID
     /// </summary>

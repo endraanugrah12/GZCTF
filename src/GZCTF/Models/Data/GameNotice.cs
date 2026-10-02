@@ -46,4 +46,12 @@ public partial class GameNotice : FormattableData<NoticeType>
             GameId = submission.GameId,
             Values = [submission.TeamName, submission.ChallengeName]
         };
+
+    internal GameNotice AnonymizeBlood() => new()
+    {
+        Id = Id, GameId = GameId, PublishTimeUtc = PublishTimeUtc, Type = Type,
+        Values = Type is NoticeType.FirstBlood or NoticeType.SecondBlood or NoticeType.ThirdBlood
+            ? ["Anonymous team", Values?.ElementAtOrDefault(1) ?? ""]
+            : Values?.ToList()
+    };
 }

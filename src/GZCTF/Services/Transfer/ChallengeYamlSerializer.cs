@@ -67,7 +67,8 @@ public static class ChallengeYamlSerializer
             // emit noisy "field: 0.20" / "difficulty: 5" lines after
             // a fresh import.
             MinScoreRate = ch.MinScoreRate == 0.20 ? null : ch.MinScoreRate,
-            Difficulty = ch.Difficulty == 5 ? null : ch.Difficulty,
+            Difficulty = ch.Difficulty,
+            ScoreCurve = ch.ScoreCurve,
             SubmissionLimit = ch.SubmissionLimit == 0 ? null : ch.SubmissionLimit,
             DisableBloodBonus = ch.DisableBloodBonus ? true : null,
             // FileName isn't in ChallengeYamlModel — the `provide:` field

@@ -48,6 +48,8 @@ public sealed class ChallengeYamlModel
 
     [YamlMember(Alias = "difficulty")]
     public double? Difficulty { get; set; }
+    [YamlMember(Alias = "scoreCurve")]
+    public ScoreCurve? ScoreCurve { get; set; }
 
     /// <summary>
     /// When true, the importer skips this challenge entirely — it is never

@@ -2,8 +2,8 @@ import { useMantineColorScheme, useMantineTheme } from '@mantine/core'
 import type { EChartsOption } from 'echarts'
 import { FC, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScoreCurve } from '@Api'
 import { EchartsContainer } from '@Components/charts/EchartsContainer'
+import { ScoreCurve } from '@Api'
 
 interface ScoreFuncProps {
   originalScore: number
@@ -24,6 +24,14 @@ export const ScoreFunc: FC<ScoreFuncProps> = ({
   // Mirrors GameChallenge.CalculateChallengeScore exactly so the preview matches the
   // real score. Keep these three branches in sync with the backend's ScoreCurve switch.
   const func = (x: number) => {
+    if (curve === ScoreCurve.CTFd)
+      return Math.ceil(
+        Math.max(
+          originalScore * minScoreRate,
+          originalScore +
+            (originalScore * minScoreRate - originalScore) * (Math.max(0, x) / Math.max(1, difficulty)) ** 2
+        )
+      )
     if (x <= 1) return originalScore
     let factor: number
     switch (curve) {

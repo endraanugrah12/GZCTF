@@ -103,7 +103,8 @@ public static class TransferExtensions
                 {
                     Original = challenge.OriginalScore,
                     MinRate = challenge.MinScoreRate,
-                    Difficulty = challenge.Difficulty
+                    Difficulty = challenge.Difficulty,
+                    ScoreCurve = challenge.ScoreCurve
                 },
                 Limits = new LimitsSection { Submission = challenge.SubmissionLimit, Deadline = challenge.DeadlineUtc },
                 Flags = new FlagsSection
@@ -319,6 +320,7 @@ public static class TransferExtensions
                 OriginalScore = transfer.Scoring.Original,
                 MinScoreRate = transfer.Scoring.MinRate,
                 Difficulty = transfer.Scoring.Difficulty,
+                ScoreCurve = transfer.Scoring.ScoreCurve,
                 SubmissionLimit = transfer.Limits.Submission,
                 DeadlineUtc = transfer.Limits.Deadline,
                 FlagTemplate = transfer.Flags.Template,

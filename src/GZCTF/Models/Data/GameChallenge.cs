@@ -47,14 +47,14 @@ public class GameChallenge : Challenge
     /// Difficulty coefficient
     /// </summary>
     [Required]
-    public double Difficulty { get; set; } = 5;
+    public double Difficulty { get; set; } = 50;
 
     /// <summary>
-    /// Shape of the score-vs-solves decay curve. Defaults to <see cref="ScoreCurve.Standard"/>
-    /// (the historical exponential decay), so every existing challenge is unchanged.
+    /// Shape of the score-vs-solves decay curve. New challenges use CTFd parabolic decay.
+    /// Existing challenges keep their explicitly stored curve.
     /// </summary>
     [Required]
-    public ScoreCurve ScoreCurve { get; set; } = ScoreCurve.Standard;
+    public ScoreCurve ScoreCurve { get; set; } = ScoreCurve.CTFd;
 
     /// <summary>
     /// Current score of the challenge
@@ -71,6 +71,14 @@ public class GameChallenge : Challenge
     internal static int CalculateChallengeScore(int originalScore, double minScoreRate, double difficulty,
         int acceptedCount, ScoreCurve curve = ScoreCurve.Standard)
     {
+        if (curve == ScoreCurve.CTFd)
+        {
+            var minimum = originalScore * minScoreRate;
+            var count = Math.Max(0, acceptedCount);
+            var decay = Math.Max(1, difficulty);
+            return (int)Math.Ceiling(Math.Max(minimum,
+                originalScore + (minimum - originalScore) * Math.Pow(count / decay, 2)));
+        }
         if (acceptedCount <= 1)
             return originalScore;
 

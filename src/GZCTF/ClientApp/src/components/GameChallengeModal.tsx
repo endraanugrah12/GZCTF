@@ -23,8 +23,7 @@ interface ChallengeSolverModel {
   score: number
 }
 
-const fetcher = (url: string) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
 
 interface GameChallengeModalProps extends ModalProps {
   gameId: number
@@ -47,23 +46,22 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
   })
 
   const { data: solverData } = useSWR<ChallengeSolverModel[]>(
-    gameId > 0 && challengeId > 0
-      ? `/api/game/${gameId}/challenges/${challengeId}/solvers`
-      : null,
+    gameId > 0 && challengeId > 0 ? `/api/game/${gameId}/challenges/${challengeId}/solvers` : null,
     fetcher,
     { refreshInterval: 30000, revalidateOnFocus: false }
   )
 
-  const solvers = useMemo((): SolverInfo[] =>
-    (solverData ?? []).map((s) => ({
-      rank: s.rank,
-      teamName: s.teamName,
-      teamAvatar: s.teamAvatar,
-      userName: s.userName,
-      type: s.type,
-      time: new Date(s.time).getTime(),
-      score: s.score,
-    })),
+  const solvers = useMemo(
+    (): SolverInfo[] =>
+      (solverData ?? []).map((s) => ({
+        rank: s.rank,
+        teamName: s.teamName,
+        teamAvatar: s.teamAvatar,
+        userName: s.userName,
+        type: s.type,
+        time: new Date(s.time).getTime(),
+        score: s.score,
+      })),
     [solverData]
   )
 
@@ -83,6 +81,12 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
   const [evidenceLinks, setEvidenceLinks] = useState('')
   const [solverFile, setSolverFile] = useState<File | null>(null)
   const [solvedChallengeId, setSolvedChallengeId] = useState<number | null>(null)
+  const evidenceUrl = `/api/game/${gameId}/challenges/${challengeId}/evidence`
+  const { data: evidenceStatus } = useSWR<{ required: boolean }>(
+    modalProps.opened ? evidenceUrl : null,
+    async (url: string) => (await api.instance.get(url, { headers: { 'Cache-Control': 'no-cache' } })).data,
+    { refreshInterval: 5000, revalidateOnFocus: true }
+  )
 
   const isLimitReached = (challenge?.limit && (challenge.attempts ?? 0) >= challenge.limit) || false
 
@@ -178,24 +182,28 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
       return
     }
 
-    if (!evidenceLinks.trim() || !solverFile) {
-      showNotification({
-        color: 'red',
-        message: 'Add at least one approved LLM share link and your solver file before submitting.',
-        icon: <Icon path={mdiClose} size={1} />,
-      })
-      return
-    }
-
     setDisabled(true)
-
     try {
-      const evidence = new FormData()
-      evidence.append('llmLinks', evidenceLinks)
-      evidence.append('solver', solverFile)
-      await api.instance.post(`/api/game/${gameId}/challenges/${challengeId}/evidence`, evidence, {
-        withCredentials: true,
-      })
+      // Read the policy again on submit so disabling it takes effect in an open modal.
+      const required = (await api.instance.get(evidenceUrl)).data.required === true
+      if (required && (!evidenceLinks.trim() || !solverFile)) {
+        setDisabled(false)
+        showNotification({
+          color: 'red',
+          message: 'Add at least one approved LLM share link and your solver file before submitting.',
+          icon: <Icon path={mdiClose} size={1} />,
+        })
+        return
+      }
+
+      if (required && solverFile) {
+        const evidence = new FormData()
+        evidence.append('llmLinks', evidenceLinks)
+        evidence.append('solver', solverFile)
+        await api.instance.post(`/api/game/${gameId}/challenges/${challengeId}/evidence`, evidence, {
+          withCredentials: true,
+        })
+      }
 
       const res = await api.game.gameSubmit(gameId, challengeId, {
         flag: await encryptApiData(t, flag, config.apiPublicKey),
@@ -357,6 +365,7 @@ export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
       flag={flag}
       setFlag={setFlag}
       evidenceLinks={evidenceLinks}
+      evidenceRequired={evidenceStatus?.required ?? false}
       setEvidenceLinks={setEvidenceLinks}
       solverFile={solverFile}
       setSolverFile={setSolverFile}

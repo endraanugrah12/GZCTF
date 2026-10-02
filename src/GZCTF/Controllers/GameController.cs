@@ -717,20 +717,15 @@ public class GameController(
 
         (var data, var lastModified) = await noticeRepository.GetLatestNotices(game.Id, token);
 
-        // During the ICPC freeze window [FreezeTimeUtc, EndTimeUtc), hide blood notices published
-        // at/after the freeze from non-monitors — they reveal the standings movement the frozen
-        // scoreboard conceals (the live broadcast is already suppressed in FlagChecker; this closes
-        // the polling path). After the game ends, everyone sees them again.
+        // Keep frozen-window blood notices visible without exposing the scoring team.
+        // Project copies: never anonymize the shared cache or persisted audit data.
         var nowUtc = DateTimeOffset.UtcNow;
         if (game.FreezeTimeUtc is { } freeze && nowUtc >= freeze && nowUtc < game.EndTimeUtc
             && !await ContextHelper.HasMonitor(HttpContext))
-            data = data.Where(n => !(n.PublishTimeUtc >= freeze
-                                     && n.Type is NoticeType.FirstBlood or NoticeType.SecondBlood
-                                         or NoticeType.ThirdBlood)).ToArray();
+            data = data.Select(n => n.PublishTimeUtc >= freeze ? n.AnonymizeBlood() : n).ToArray();
 
-        var eTag = $"\"{game.Id}-{lastModified.ToUnixTimeSeconds():X}-{skip}-{count}\"";
-        if (ContextHelper.IsNotModified(Request, Response, eTag, lastModified))
-            return StatusCode(StatusCodes.Status304NotModified);
+        // Notice visibility changes at freeze boundaries without a new notice.
+        Response.Headers.CacheControl = "private, no-store";
         return Ok(data.Skip(skip).Take(count));
     }
 
@@ -1181,7 +1176,7 @@ public class GameController(
         if (scoreboard is not null)
         {
             eTag = GameETag(id, scoreboard.UpdateTimeUtc, isFrozenView);
-            if (ContextHelper.IsNotModified(Request, Response, eTag, scoreboard.UpdateTimeUtc, true))
+            if (!isFrozenView && ContextHelper.IsNotModified(Request, Response, eTag, scoreboard.UpdateTimeUtc, true))
                 return StatusCode(StatusCodes.Status304NotModified);
         }
 
@@ -1209,6 +1204,20 @@ public class GameController(
                 Name = context.Participation!.Team.Name,
                 Id = context.Participation!.TeamId
             };
+
+        // Own solve state is private and live; do not mutate the shared frozen cache
+        // or expose current blood tiers/score changes of other teams.
+        if (isFrozenView)
+        {
+            Response.Headers.CacheControl = "private, no-store";
+            Response.Headers.Remove("ETag");
+            Response.Headers.Remove("Last-Modified");
+            var ownSolves = await dbContext.FirstSolves.AsNoTracking()
+                .Where(s => s.ParticipationId == context.Participation.Id && s.Challenge.GameId == id)
+                .Select(s => new ChallengeItem { Id = s.ChallengeId, Type = SubmissionType.Normal })
+                .ToListAsync(token);
+            boardItem = boardItem.WithOwnSolves(ownSolves);
+        }
 
         return Ok(new GameDetailModel
         {
@@ -1679,6 +1688,7 @@ public class GameController(
     /// <summary>Returns whether a fresh evidence package is ready for the next flag submission.</summary>
     [RequireUser]
     [HttpGet("{id:int}/Challenges/{challengeId:int}/Evidence")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(SubmissionEvidenceStatusModel), StatusCodes.Status200OK)]
     public async Task<IActionResult> EvidenceStatus([FromRoute] int id, [FromRoute] int challengeId,
         CancellationToken token)
