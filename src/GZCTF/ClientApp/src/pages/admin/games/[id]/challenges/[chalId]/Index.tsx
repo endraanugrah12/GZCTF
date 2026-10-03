@@ -576,7 +576,7 @@ const GameChallengeEdit: FC = () => {
                       min={0.1}
                       required
                       disabled={disabled}
-                      value={challengeInfo?.difficulty ?? 100}
+                      value={challengeInfo?.difficulty ?? 50}
                       stepHoldDelay={500}
                       stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                       onChange={(e) => {
@@ -635,11 +635,18 @@ const GameChallengeEdit: FC = () => {
                 </Stack>
               </Grid.Col>
               <Grid.Col span={1}>
+                <Text size="xs" c="dimmed" mb="sm">
+                  Last loaded from server: {challenge?.scoreCurve ?? ScoreCurve.Standard}
+                  {' · Initial '}{challenge?.originalScore ?? 500}
+                  {' · Minimum '}{Math.ceil((challenge?.originalScore ?? 500) * (challenge?.minScoreRate ?? 0.20))}
+                  {' · Decay '}{challenge?.difficulty ?? 50}
+                </Text>
                 <ScoreFunc
+                  key={numCId}
                   currentAcceptCount={currentAcceptCount}
                   originalScore={challengeInfo.originalScore ?? 500}
                   minScoreRate={minRate / 100}
-                  difficulty={challengeInfo.difficulty ?? 30}
+                  difficulty={challengeInfo.difficulty ?? 50}
                   curve={challengeInfo?.scoreCurve ?? ScoreCurve.Standard}
                 />
               </Grid.Col>

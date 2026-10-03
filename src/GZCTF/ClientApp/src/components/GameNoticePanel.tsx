@@ -11,7 +11,6 @@ import { Empty } from '@Components/Empty'
 import { InlineMarkdown } from '@Components/MarkdownRenderer'
 import { useLanguage } from '@Utils/I18n'
 import { NoticTypeIconMap } from '@Utils/Shared'
-import { OnceSWRConfig } from '@Hooks/useConfig'
 import api, { GameNotice, NoticeType } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import typoClasses from '@Styles/Typography.module.css'
@@ -93,7 +92,13 @@ export const GameNoticePanel: FC = () => {
   const { locale } = useLanguage()
   const theme = useMantineTheme()
 
-  const { data: notices } = api.game.useGameNotices(numId, {}, OnceSWRConfig)
+  // SignalR provides immediate updates; polling recovers notices if a connection
+  // drops while the page is open.
+  const { data: notices } = api.game.useGameNotices(numId, {}, {
+    refreshInterval: 15_000,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  })
 
   useEffect(() => {
     newNotices.current = []
@@ -142,7 +147,7 @@ export const GameNoticePanel: FC = () => {
         })
       }
     }
-  })
+  }, [id, numId, t, theme])
 
   const allNotices = [...newNotices.current, ...(notices ?? [])]
   const filteredNotices = ApplyFilter(allNotices, filter)

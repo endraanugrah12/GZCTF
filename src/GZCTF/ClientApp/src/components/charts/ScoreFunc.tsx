@@ -1,8 +1,9 @@
-import { useMantineColorScheme, useMantineTheme } from '@mantine/core'
+import { Button, Group, NumberInput, Slider, Stack, Text, useMantineColorScheme, useMantineTheme } from '@mantine/core'
 import type { EChartsOption } from 'echarts'
-import { FC, useMemo } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EchartsContainer } from '@Components/charts/EchartsContainer'
+import { challengeScore } from '@Utils/ChallengeScoring'
 import { ScoreCurve } from '@Api'
 
 interface ScoreFuncProps {
@@ -20,37 +21,20 @@ export const ScoreFunc: FC<ScoreFuncProps> = ({
   currentAcceptCount,
   curve = ScoreCurve.Standard,
 }) => {
-  const toX = (x: number) => (x * 6 * difficulty) / 100
-  // Mirrors GameChallenge.CalculateChallengeScore exactly so the preview matches the
-  // real score. Keep these three branches in sync with the backend's ScoreCurve switch.
-  const func = (x: number) => {
-    if (curve === ScoreCurve.CTFd)
-      return Math.ceil(
-        Math.max(
-          originalScore * minScoreRate,
-          originalScore +
-            (originalScore * minScoreRate - originalScore) * (Math.max(0, x - 1) / Math.max(1, difficulty)) ** 2
-        )
-      )
-    if (x <= 1) return originalScore
-    let factor: number
-    switch (curve) {
-      case ScoreCurve.Linear:
-        factor = Math.max(minScoreRate, 1 - (1 - minScoreRate) * ((x - 1) / difficulty))
-        break
-      case ScoreCurve.Logarithmic:
-        factor = minScoreRate + (1 - minScoreRate) / (1 + Math.log(x) / difficulty)
-        break
-      default:
-        factor = minScoreRate + (1 - minScoreRate) * Math.exp((1 - x) / difficulty)
-    }
-    return Math.floor(originalScore * factor)
-  }
-
-  const curScore = func(currentAcceptCount)
-  const showCount = currentAcceptCount > 5.8 * difficulty ? 5.8 * difficulty : currentAcceptCount
+  const [possibleSolves, setPossibleSolves] = useState(Math.max(10, currentAcceptCount))
+  const [selectedSolves, setSelectedSolves] = useState(1)
+  const func = (count: number) => challengeScore(originalScore, minScoreRate, difficulty, count, curve)
+  const curScore = func(selectedSolves)
+  const showCount = selectedSolves
   const theme = useMantineTheme()
-  const plotData = [...Array(100).keys()].map((x) => [toX(x), func(toX(x))])
+  const samples = Math.min(200, possibleSolves)
+  const plotCounts = [
+    ...new Set([
+      ...Array.from({ length: samples + 1 }, (_, n) => Math.round((n * possibleSolves) / samples)),
+      selectedSolves,
+    ]),
+  ].sort((a, b) => a - b)
+  const plotData = plotCounts.map((count) => [count, func(count)])
   const { colorScheme } = useMantineColorScheme()
   const { t } = useTranslation()
   const primaryColors = theme.colors[theme.primaryColor]
@@ -70,6 +54,9 @@ export const ScoreFunc: FC<ScoreFuncProps> = ({
         },
         xAxis: {
           name: t('admin.content.games.challenges.solve_count'),
+          min: 0,
+          max: possibleSolves,
+          minInterval: 1,
         },
         yAxis: {
           name: t('admin.content.games.challenges.score'),
@@ -116,20 +103,68 @@ export const ScoreFunc: FC<ScoreFuncProps> = ({
           },
         ],
       }) satisfies EChartsOption,
-    [theme, originalScore, difficulty, minScoreRate, currentAcceptCount, curve]
+    [theme, originalScore, difficulty, minScoreRate, selectedSolves, possibleSolves, curve, color, t]
   )
 
   return (
-    <EchartsContainer
-      option={option}
-      opts={{
-        renderer: 'svg',
-      }}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-      }}
-    />
+    <Stack gap="sm">
+      <Text fw={600}>Score simulator</Text>
+      <Text size="xs" c="dimmed">
+        Form values: {curve} · Initial {originalScore} · Minimum {Math.ceil(originalScore * minScoreRate)} · Decay{' '}
+        {difficulty}
+      </Text>
+      <Text size="xs" c="dimmed">
+        Preview only, before blood bonuses. Save challenge settings to apply changes. The range below does not change
+        decay.
+      </Text>
+      <Group align="end">
+        <NumberInput
+          label="Possible solves / teams"
+          min={1}
+          max={100000}
+          allowDecimal={false}
+          value={possibleSolves}
+          onChange={(value) => {
+            if (typeof value !== 'number' || !Number.isFinite(value)) return
+            const maximum = Math.max(1, Math.min(100000, Math.floor(value)))
+            setPossibleSolves(maximum)
+            setSelectedSolves((count) => Math.min(count, maximum))
+          }}
+        />
+        <Button
+          variant="light"
+          size="xs"
+          onClick={() => {
+            setPossibleSolves((maximum) => Math.max(maximum, currentAcceptCount, 1))
+            setSelectedSolves(currentAcceptCount)
+          }}
+        >
+          Use current count ({currentAcceptCount})
+        </Button>
+      </Group>
+      <Text aria-live="polite" fw={700}>
+        {selectedSolves} solves → {curScore} points
+      </Text>
+      <Slider
+        aria-label="Simulated solve count"
+        min={0}
+        max={possibleSolves}
+        step={1}
+        value={selectedSolves}
+        onChange={setSelectedSolves}
+        label={(count) => `${count} solves: ${func(count)} points`}
+      />
+      <EchartsContainer
+        option={option}
+        opts={{
+          renderer: 'svg',
+        }}
+        style={{
+          width: '100%',
+          height: 260,
+          display: 'flex',
+        }}
+      />
+    </Stack>
   )
 }
